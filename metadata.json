@@ -1,0 +1,8 @@
+{
+  "name": "صحيفة MUDigital - قالب مشروع تخرج",
+  "description": "قالب صحيفة إلكترونية متكامل بأسلوب عصري يدعم الوضع الليلي والتصفح السريع، مخصص كمشروع تخرج لطلاب كليات الإعلام والصحافة الرقمية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

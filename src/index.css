@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-headline: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-editorial: 'Amiri', serif;
+    --font-body: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-headline);
+  }
+}
+
+.font-headline {
+  font-family: var(--font-headline);
+}
+
+.font-editorial {
+  font-family: var(--font-editorial);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* Custom newspaper column rules */
+.newspaper-columns {
+  column-count: 2;
+  column-gap: 2rem;
+  column-rule: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .newspaper-columns {
+  column-rule: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+  .newspaper-columns {
+    column-count: 1;
+    column-rule: none;
+  }
+}
+
+/* Custom smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.5);
+}
