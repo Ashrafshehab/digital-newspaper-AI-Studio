@@ -5,6 +5,9 @@ import heroImg from '../assets/images/hero_investigation_1790383838081.jpg';
 import techImg from '../assets/images/tech_ai_arabic_1790383850276.jpg';
 import campusImg from '../assets/images/campus_graduation_1790383861514.jpg';
 import cultureImg from '../assets/images/culture_heritage_1790383871057.jpg';
+import infographicImg from '../assets/images/infographic_media_ai_1790508109709.jpg';
+import multimediaImg from '../assets/images/multimedia_broadcast_1790508120852.jpg';
+
 
 export const EDITORIAL_USERS: EditorialUser[] = [
   {
@@ -122,7 +125,8 @@ export const GRADUATION_PROJECT_INFO: GraduationProjectInfo = {
 
 export const CATEGORIES: Category[] = [
   { id: 'all', name: 'الرئيسية', slug: 'all', description: 'جميع الأخبار والتقارير المعتمدة للنشر' },
-  { id: 'investigations', name: 'تحقيقات واستقصاء', slug: 'investigations', description: 'تحقيقات ميدانية وقصص صحافة البيانات المعمقة' },
+  { id: 'multimedia', name: 'وسائط وملتيميديا', slug: 'multimedia', description: 'فيديوهات وإنفوجرافيك وبودكاست وتقارير مصورة' },
+  { id: 'investigations', name: 'تقارير وتحقيقات', slug: 'investigations', description: 'تقارير ميدانية وتحقيقات استقصائية وقصص صحافة البيانات المعمقة' },
   { id: 'campus', name: 'نبض الجامعة', slug: 'campus', description: 'أخبار الجامعات وشؤون الطلاب ومشاريع التخرج' },
   { id: 'technology', name: 'تقنية وذكاء اصطناعي', slug: 'technology', description: 'مستجدات العالم الرقمي والخوارزميات وصحافة المستقبل' },
   { id: 'culture', name: 'ثقافة ومجتمع', slug: 'culture', description: 'فنون وأدب وقراءات نقدية وإرث تاريخي' },
@@ -132,6 +136,121 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const INITIAL_ARTICLES: Article[] = [
+  {
+    id: 'art-mm-001',
+    title: 'إنفوجرافيك طولي: خريطة تحولات الذكاء الاصطناعي وصحافة البيانات في الجامعات 2026',
+    subtitle: 'رسم بياني طولي شامل يعرض مؤشرات غرف الأخبار الرقمية وتدريب الطلاب على التدقيق الآلي',
+    excerpt: 'تصميم إنفوجرافيك كامل بأبعاد طولية دقيقة يحلل نتائج مسح شمل 1500 طالب وباحث حول دمج أدوات الذكاء الاصطناعي وصحافة البيانات والتحقق من التزييف العميق.',
+    content: [
+      'يقدم هذا الإنفوجرافيك التفاعلي قراءة بصرية استقصائية لأهم المؤشرات والبيانات التي رصدها فريق العمل حول التحول الرقمي في كليات الإعلام المصرية لعام 2026.',
+      'تظهر الإحصائيات ارتفاع نسبة الاعتماد على أدوات تدقيق المصادر المفتوحة بنسبة 74%، بينما تضاعف إنتاج البودكاست والتقارير المصورة بنسبة 130% خلال العام الأكاديمي الحالي.',
+      'تم تصميم ونشر هذا الإنفوجرافيك بكامل أبعاده الرأسية الطبيعية دون أي اقتطاع أو قص للحفاظ على نقاء الأرقام ووضوح المخططات البيانية.'
+    ],
+    pullQuote: 'صحافة البيانات والإنفوجرافيك ليست تزيينا للخبر، بل هي لغة العصر لتبسيط الحقائق المعقدة بالأرقام والوثائق.',
+    category: 'وسائط وملتيميديا',
+    categoryId: 'multimedia',
+    mediaType: 'infographic',
+    imageDisplayMode: 'infographic_vertical',
+    author: {
+      name: 'نور الهدى إبراهيم',
+      role: 'مسؤولة التدقيق اللغوي والوسائط المتعددة',
+      studentId: 'ST-20220335',
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80'
+    },
+    publishedAt: 'اليوم · السبت 26 سبتمبر 2026',
+    readTimeMinutes: 3,
+    image: infographicImg,
+    imageCaption: 'إنفوجرافيك طولي كامل (بدون قص): مؤشرات الاعتماد على الذكاء الاصطناعي والوسائط المتعددة بالجامعة الحديثة MTI.',
+    isLead: false,
+    isBreaking: false,
+    isEditorPick: true,
+    trendingRank: 3,
+    views: 2940,
+    likes: 185,
+    tags: ['إنفوجرافيك', 'وسائط وملتيميديا', 'ذكاء اصطناعي', 'بيانات'],
+    audioDuration: '03:15 دقيقة',
+    status: 'published',
+    factCheck: {
+      verdict: 'investigative',
+      verdictLabelAr: 'تحقيق استقصائي موثق بالبيانات',
+      checkedBy: 'وحدة صحافة البيانات وتدقيق الحقائق',
+      checkedAt: '26 سبتمبر 2026',
+      transparencyScore: 98,
+      methodologySummary: 'تم استخراج البيانات من استبيانات ميدانية موثقة ومطابقتها مع سجلات مختبرات كلية الإعلام.',
+      sourcesList: [
+        {
+          id: 'src-mm-1',
+          title: 'التقرير السنوي لمختبرات الذكاء الاصطناعي بالجامعة الحديثة MTI 2026',
+          type: 'official_document',
+          typeLabelAr: 'تقرير رسمي معتمد'
+        }
+      ]
+    },
+    workflowLogs: [
+      {
+        id: 'log-mm-1',
+        stageName: 'مرحلة الاعتماد النهائي',
+        actorName: 'أ. سناء فهمي',
+        actorRole: 'مدير التحرير',
+        action: 'publish',
+        timestamp: '26 سبتمبر 2026 - 11:00 ص',
+        notes: 'تمت إجازة الإنفوجرافيك ونشره بكامل أبعاده في قسم وسائط وملتيميديا.'
+      }
+    ],
+    comments: []
+  },
+  {
+    id: 'art-mm-002',
+    title: 'تقرير مصور وفيديو: داخل كواليس استوديو البودكاست والمختبرات الافتراضية للصحافة',
+    subtitle: 'جولة ميدانية بالصوت والصورة في قاعات الإنتاج الإذاعي والتلفزيوني ومشروعات التخرج المبتكرة',
+    excerpt: 'تغطية مرئية متكاملة ترصد كيف يتدرب طلاب الصحافة على إنتاج الفيديوهات الوثائقية والبودكاست الاستقصائي باستخدام أحدث تقنيات التصوير وعزل الصوت.',
+    content: [
+      'اصطحبت كاميرا صحيفة MUDigital الطلاب والأساتذة في جولة تفاعلية داخل مجمع استوديوهات الإنتاج الإعلامي المتطور بالحرم الجامعي.',
+      'تتضمن قاعات التدريب 4 وحدات مونتاج رقمي متقدمة، واستوديو بودكاست متكامل يتيح للطلاب بث حلقاتهم الأسبوعية ومناقشة قضايا الشباب والتعليم واقتصاد المعرفة.',
+      'يؤكد القائمون على الاستوديو أن التمكن من أدوات الملتيميديا والإنتاج المرئي أصبح شرطا أساسيا في غرف الأخبار المعاصرة.'
+    ],
+    pullQuote: 'الصورة والصوت والكلمة الصادقة تلتقي في غرف الأخبار الحديثة لتخلق أثرا مجتمعيا ملموسا.',
+    category: 'وسائط وملتيميديا',
+    categoryId: 'multimedia',
+    mediaType: 'video',
+    imageDisplayMode: 'cover',
+    author: {
+      name: 'يوسف طارق البنا',
+      role: 'تصميم تجربة المستخدم وتطوير الواجهة الأمامية',
+      studentId: 'ST-20220874',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80'
+    },
+    publishedAt: 'منذ 3 ساعات · السبت 26 سبتمبر 2026',
+    readTimeMinutes: 4,
+    image: multimediaImg,
+    imageCaption: 'استوديو البودكاست والإنتاج المرئي بكلية الإعلام وفنون الاتصال أثناء تسجيل حلقة حوارية.',
+    isLead: false,
+    isBreaking: false,
+    isEditorPick: true,
+    trendingRank: 5,
+    views: 2180,
+    likes: 142,
+    tags: ['فيديو', 'تقرير مصور', 'بودكاست', 'وسائط وملتيميديا'],
+    audioDuration: '05:30 دقيقة',
+    status: 'published',
+    factCheck: {
+      verdict: 'verified',
+      verdictLabelAr: 'حقائق مصورة ومؤكدة ميدانياً',
+      checkedBy: 'وحدة التدقيق التحريري MUDigital',
+      checkedAt: '26 سبتمبر 2026',
+      transparencyScore: 96,
+      methodologySummary: 'تم تصوير التقرير ميدانيا وتوثيق كافة الشهادات والتجهيزات الحية داخل الأستوديو.',
+      sourcesList: [
+        {
+          id: 'src-mm-2',
+          title: 'تسجيلات الكاميرا والمقابلات الحية الميدانية',
+          type: 'field_data',
+          typeLabelAr: 'بيانات وتوثيق ميداني'
+        }
+      ]
+    },
+    comments: []
+  },
   {
     id: 'art-001',
     title: 'مستقبل غرف الأخبار العربية: كيف يعيد الجيل الجديد صياغة صحافة التحري وصناعة المحتوى؟',
@@ -143,7 +262,7 @@ export const INITIAL_ARTICLES: Article[] = [
       'ويرى الأكاديميون المشرفون على برامج الإعلام أن التحدي لم يعد تقنيا فحسب، بل هو بالأساس تحد أخلاقي وقيمي؛ كيف نستفيد من سرعة الخوارزميات دون التنازل عن رصانة التدقيق الصحفي وعمق الطرح الإنساني؟'
     ],
     pullQuote: 'الصحافة ليست سباقا لمن ينشر أولا، بل هي عهد لمن ينشر الحقيقة كاملة دون تشويه أو اجتزاء.',
-    category: 'تحقيقات واستقصاء',
+    category: 'تقارير وتحقيقات',
     categoryId: 'investigations',
     author: {
       name: 'أحمد محمود العوضي',
@@ -442,7 +561,7 @@ export const INITIAL_ARTICLES: Article[] = [
     content: [
       'أظهرت دراسة استقصائية شملت 500 طالب أن التحول إلى المراجع الرقمية المفتوحة وفر أكثر من 60% من نفقات الدراسة السنوية.'
     ],
-    category: 'تحقيقات واستقصاء',
+    category: 'تقارير وتحقيقات',
     categoryId: 'investigations',
     author: {
       name: 'أحمد محمود العوضي',
@@ -479,7 +598,7 @@ export const INITIAL_ARTICLES: Article[] = [
       'كشفت نتائج استبيان ميداني شمل طلاب الفرقة الرابعة بقسم الصحافة أن أكثر من 85% من الطلاب يعتمدون على النشر المباشر وأنظمة إدارة المحتوى السحابية لإنجاز مشاريعهم.',
       'وأوضح الدكتور المشرف على المشروع أن التدريب العملي على الصحافة الرقمية يعزز فرص الخريجين في الالتحاق بالمؤسسات الصحفية الكبرى فورا بعد التخرج.'
     ],
-    category: 'تحقيقات واستقصاء',
+    category: 'تقارير وتحقيقات',
     categoryId: 'investigations',
     author: {
       name: 'أحمد محمود العوضي',

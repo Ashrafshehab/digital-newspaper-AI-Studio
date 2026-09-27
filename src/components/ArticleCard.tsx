@@ -1,6 +1,6 @@
 import React from 'react';
 import { Article } from '../types/newspaper';
-import { Clock, Eye, Bookmark, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Clock, Eye, Bookmark, ArrowLeft, ShieldCheck, BarChart2, Video, Headphones } from 'lucide-react';
 
 interface ArticleCardProps {
   article: Article;
@@ -152,6 +152,24 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           <div className="absolute top-2.5 left-2.5 bg-emerald-900/90 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1 border border-emerald-400/40">
             <ShieldCheck className="w-3 h-3 text-emerald-300" />
             <span>مدقق {article.factCheck.transparencyScore}%</span>
+          </div>
+        )}
+        {article.mediaType === 'infographic' && (
+          <div className="absolute bottom-2.5 right-2.5 bg-emerald-800/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+            <BarChart2 className="w-3 h-3 text-emerald-300" />
+            <span>إنفوجرافيك طولي كامل</span>
+          </div>
+        )}
+        {article.mediaType === 'video' && (
+          <div className="absolute bottom-2.5 right-2.5 bg-rose-700/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+            <Video className="w-3 h-3 text-rose-200" />
+            <span>تقرير مصور وفيديو</span>
+          </div>
+        )}
+        {article.mediaType === 'podcast' && (
+          <div className="absolute bottom-2.5 right-2.5 bg-purple-700/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+            <Headphones className="w-3 h-3 text-purple-200" />
+            <span>بودكاست صوتي</span>
           </div>
         )}
       </div>

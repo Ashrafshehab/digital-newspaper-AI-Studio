@@ -32,7 +32,9 @@ import {
   FileCheck,
   ExternalLink,
   Shield,
-  Trash2
+  Trash2,
+  BarChart2,
+  Maximize2
 } from 'lucide-react';
 import {
   Article,
@@ -129,6 +131,7 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
 
   // Photo library picker state
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
 
   // Sync edit form whenever article changes
   useEffect(() => {
@@ -1189,16 +1192,70 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                 )}
               </div>
 
-              {/* Article Featured Photo */}
+              {/* Article Featured Photo / Infographic / Multimedia View */}
               <div className="max-w-3xl mx-auto space-y-2">
-                <div className="aspect-16/9 rounded-lg overflow-hidden bg-stone-200 dark:bg-stone-800">
-                  <img
-                    src={article.image}
-                    alt={article.title}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
+                {article.mediaType === 'infographic' || article.imageDisplayMode === 'infographic_vertical' ? (
+                  /* Vertical Infographic without Crop */
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold">
+                        <BarChart2 className="w-4 h-4 text-emerald-600" />
+                        <span>إنفوجرافيك طولي كامل (بدون أي قص)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsImageZoomed(true)}
+                        className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        <span>تكبير الإنفوجرافيك بالحجم الكامل</span>
+                      </button>
+                    </div>
+
+                    <div
+                      onClick={() => setIsImageZoomed(true)}
+                      className="rounded-xl overflow-hidden bg-stone-900 border border-stone-200 dark:border-stone-800 p-2 sm:p-4 flex justify-center cursor-zoom-in group"
+                    >
+                      <img
+                        src={article.image}
+                        alt={article.title}
+                        className="max-w-full h-auto object-contain mx-auto rounded shadow-lg group-hover:scale-[1.01] transition-transform"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  </div>
+                ) : article.mediaType === 'video' ? (
+                  /* Video / Multimedia Report View */
+                  <div className="space-y-2">
+                    <div className="relative aspect-16/9 rounded-xl overflow-hidden bg-stone-900 border border-stone-800 flex items-center justify-center group">
+                      <img
+                        src={article.image}
+                        alt={article.title}
+                        className="w-full h-full object-cover opacity-90 group-hover:opacity-75 transition-opacity"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/35 group-hover:bg-black/45 transition-colors">
+                        <div className="w-16 h-16 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                          <Play className="w-8 h-8 ml-1" />
+                        </div>
+                        <span className="mt-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-xs text-white text-xs font-bold">
+                          مشاهدة التقرير المصور (فيديو HD)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Standard Landscape Photo */
+                  <div className="aspect-16/9 rounded-lg overflow-hidden bg-stone-200 dark:bg-stone-800 border border-stone-200 dark:border-stone-800">
+                    <img
+                      src={article.image}
+                      alt={article.title}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                )}
+
                 {article.imageCaption && (
                   <p className="text-xs text-stone-500 italic text-center font-editorial">
                     {article.imageCaption}
@@ -1361,6 +1418,45 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                 : `اختيار صورة شخصية لكاتب المقال: ${editAuthorName || 'الكاتب'} (400 × 400)`
             }
           />
+        )}
+
+        {/* Full-Height Infographic Zoom Overlay */}
+        {isImageZoomed && (
+          <div
+            className="fixed inset-0 z-[95] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-fadeIn"
+            onClick={() => setIsImageZoomed(false)}
+          >
+            <div
+              className="bg-stone-950 border border-stone-800 rounded-2xl max-w-4xl max-h-[92vh] w-full overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 py-3 border-b border-stone-800 flex items-center justify-between text-white">
+                <div>
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-emerald-500" />
+                    <span>{article.title}</span>
+                  </h4>
+                  <p className="text-[11px] text-stone-400 mt-0.5">
+                    معاينة كاملة بدون قص للإنفوجرافيك
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsImageZoomed(false)}
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center bg-black/50">
+                <img
+                  src={article.image}
+                  alt={article.title}
+                  className="max-w-full h-auto rounded-lg shadow-2xl"
+                />
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -86,7 +86,21 @@ export default function App() {
     const saved = localStorage.getItem('mudigital_articles');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: Article[] = JSON.parse(saved);
+        // Ensure category name is updated from old name 'تحقيقات واستقصاء' to 'تقارير وتحقيقات'
+        const updatedArticles = parsed.map((a) => {
+          if (a.categoryId === 'investigations' || a.category === 'تحقيقات واستقصاء') {
+            return { ...a, category: 'تقارير وتحقيقات' };
+          }
+          return a;
+        });
+        // Ensure new multimedia articles are merged if missing
+        const existingIds = new Set(updatedArticles.map((a) => a.id));
+        const missingNew = INITIAL_ARTICLES.filter((a) => !existingIds.has(a.id));
+        if (missingNew.length > 0) {
+          return [...missingNew, ...updatedArticles];
+        }
+        return updatedArticles;
       } catch {
         return INITIAL_ARTICLES;
       }
@@ -103,7 +117,27 @@ export default function App() {
     const saved = localStorage.getItem('mudigital_categories');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        let parsed: Category[] = JSON.parse(saved);
+        // Ensure section name is updated from 'تحقيقات واستقصاء' to 'تقارير وتحقيقات'
+        parsed = parsed.map((c) => {
+          if (c.id === 'investigations') {
+            return {
+              ...c,
+              name: 'تقارير وتحقيقات',
+              description: 'تقارير ميدانية وتحقيقات استقصائية وقصص صحافة البيانات المعمقة'
+            };
+          }
+          return c;
+        });
+        // Ensure multimedia category is included if missing in previous localStorage
+        const hasMultimedia = parsed.some((c) => c.id === 'multimedia');
+        if (!hasMultimedia) {
+          const multimediaCat = CATEGORIES.find((c) => c.id === 'multimedia');
+          if (multimediaCat) {
+            return [parsed[0], multimediaCat, ...parsed.slice(1)];
+          }
+        }
+        return parsed;
       } catch {
         return CATEGORIES;
       }
@@ -137,7 +171,14 @@ export default function App() {
     const saved = localStorage.getItem('mudigital_photo_library');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: PhotoLibraryItem[] = JSON.parse(saved);
+        // Ensure new preset photos are merged if missing
+        const existingIds = new Set(parsed.map((p) => p.id));
+        const missing = INITIAL_PHOTO_LIBRARY.filter((p) => !existingIds.has(p.id));
+        if (missing.length > 0) {
+          return [...missing, ...parsed];
+        }
+        return parsed;
       } catch {
         return INITIAL_PHOTO_LIBRARY;
       }

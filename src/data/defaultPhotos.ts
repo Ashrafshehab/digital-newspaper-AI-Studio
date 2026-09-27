@@ -1,12 +1,40 @@
 import { PhotoLibraryItem } from '../types/newspaper';
 
-// Imported local assets
 import heroImg from '../assets/images/hero_investigation_1790383838081.jpg';
 import techImg from '../assets/images/tech_ai_arabic_1790383850276.jpg';
 import campusImg from '../assets/images/campus_graduation_1790383861514.jpg';
 import cultureImg from '../assets/images/culture_heritage_1790383871057.jpg';
+import infographicImg from '../assets/images/infographic_media_ai_1790508109709.jpg';
+import multimediaImg from '../assets/images/multimedia_broadcast_1790508120852.jpg';
 
 export const INITIAL_PHOTO_LIBRARY: PhotoLibraryItem[] = [
+  {
+    id: 'photo-infographic-001',
+    title: 'إنفوجرافيك طولي: خريطة تحولات الذكاء الاصطناعي وصحافة البيانات 2026',
+    url: infographicImg,
+    caption: 'تصميم إنفوجرافيك طولي كامل (بدون أي قص) يوضح مؤشرات تبني أدوات التحقق التوليدي في الجامعات وغرف الأخبار.',
+    photographer: 'قسم صحافة البيانات والإنفوجرافيك',
+    preset: 'infographic_vertical',
+    fitMode: 'no_crop_scale',
+    width: 1080,
+    height: 1440,
+    uploadedAt: '2026/09/27',
+    fileSizeKB: 320,
+    isInfographic: true
+  },
+  {
+    id: 'photo-multimedia-002',
+    title: 'استوديو البودكاست والإنتاج المرئي بكلية الإعلام',
+    url: multimediaImg,
+    caption: 'تجهيزات الاستوديو التلفزيوني ومعدات الصوتيات لإنتاج التقارير المصورة وبرامج البودكاست.',
+    photographer: 'عدسة: وحدة الوسائط المتعددة',
+    preset: 'topic_landscape',
+    fitMode: 'crop_cover',
+    width: 1200,
+    height: 675,
+    uploadedAt: '2026/09/27',
+    fileSizeKB: 295
+  },
   {
     id: 'photo-001',
     title: 'قاعة الأخبار واستوديو الإنتاج الرقمي',

@@ -61,10 +61,18 @@ export const NewspaperFooter: React.FC<NewspaperFooterProps> = ({
             <ul className="space-y-2 text-xs text-stone-600 dark:text-stone-400">
               <li>
                 <button
+                  onClick={() => onSelectCategory('multimedia')}
+                  className="hover:text-stone-950 dark:hover:text-white cursor-pointer font-semibold text-amber-700 dark:text-amber-400"
+                >
+                  وسائط وملتيميديا (إنفوجرافيك وفيديو)
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => onSelectCategory('investigations')}
                   className="hover:text-stone-950 dark:hover:text-white cursor-pointer"
                 >
-                  تحقيقات واستقصاء
+                  تقارير وتحقيقات
                 </button>
               </li>
               <li>

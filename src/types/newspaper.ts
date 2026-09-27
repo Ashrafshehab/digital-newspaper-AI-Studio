@@ -89,6 +89,10 @@ export interface Article {
   lastEditedAt?: string;
   correctionNotice?: string;
   factCheck?: FactCheckInfo;
+  mediaType?: 'article' | 'infographic' | 'video' | 'podcast' | 'photo_story';
+  imageDisplayMode?: 'cover' | 'contain' | 'infographic_vertical' | 'natural';
+  videoUrl?: string;
+  podcastUrl?: string;
 }
 
 export interface Category {
@@ -140,7 +144,16 @@ export interface EditorialUser {
   joinedDate?: string;
 }
 
-export type PhotoPresetType = 'topic_landscape' | 'profile_square' | 'banner_wide' | 'standard_photo';
+export type PhotoPresetType =
+  | 'topic_landscape'
+  | 'infographic_vertical'
+  | 'original_no_crop'
+  | 'story_vertical'
+  | 'profile_square'
+  | 'banner_wide'
+  | 'standard_photo';
+
+export type PhotoFitMode = 'no_crop_scale' | 'contain_letterbox' | 'crop_cover';
 
 export interface PhotoPresetConfig {
   id: PhotoPresetType;
@@ -150,6 +163,8 @@ export interface PhotoPresetConfig {
   aspectRatio: string;
   usageDescription: string;
   badge: string;
+  isVertical?: boolean;
+  defaultFitMode?: PhotoFitMode;
 }
 
 export interface PhotoLibraryItem {
@@ -159,8 +174,13 @@ export interface PhotoLibraryItem {
   caption: string;
   photographer?: string;
   preset: PhotoPresetType;
+  fitMode?: PhotoFitMode;
   width: number;
   height: number;
   uploadedAt: string;
   fileSizeKB?: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  isInfographic?: boolean;
 }
+

@@ -119,8 +119,8 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   // Form state for composing
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [category, setCategory] = useState('تحقيقات واستقصاء');
-  const [categoryId, setCategoryId] = useState<'investigations' | 'technology' | 'campus' | 'culture' | 'economy' | 'opinion' | 'sports'>('investigations');
+  const [category, setCategory] = useState('تقارير وتحقيقات');
+  const [categoryId, setCategoryId] = useState<string>('investigations');
   const [excerpt, setExcerpt] = useState('');
   const [contentRaw, setContentRaw] = useState('');
   const [pullQuote, setPullQuote] = useState('');
@@ -1639,8 +1639,10 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
                     value={category}
                     onChange={(e) => {
                       setCategory(e.target.value);
-                      const mapping: Record<string, 'investigations' | 'technology' | 'campus' | 'culture' | 'economy' | 'opinion' | 'sports'> = {
+                      const mapping: Record<string, string> = {
+                        'تقارير وتحقيقات': 'investigations',
                         'تحقيقات واستقصاء': 'investigations',
+                        'وسائط وملتيميديا': 'multimedia',
                         'نبض الجامعة': 'campus',
                         'تقنية وذكاء اصطناعي': 'technology',
                         'ثقافة ومجتمع': 'culture',
@@ -2876,12 +2878,12 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
           onSelectPhoto={handlePhotoPicked}
           initialPresetFilter={
             photoPickerTarget === 'article' || photoPickerTarget === 'inspected_article'
-              ? 'topic_landscape'
+              ? 'all'
               : 'profile_square'
           }
           modalTitle={
             photoPickerTarget === 'article' || photoPickerTarget === 'inspected_article'
-              ? 'اختيار صورة موضوعية للمقال (1200 × 675)'
+              ? 'اختيار صورة موضوعية أو إنفوجرافيك للمقال (أفقي أو رأسي بدون قص)'
               : photoPickerTarget === 'compose_author' || photoPickerTarget === 'inspected_author'
               ? 'اختيار صورة شخصية لكاتب المقال (400 × 400)'
               : photoPickerTarget === 'edit_user'
