@@ -34,7 +34,10 @@ import {
   Shield,
   Trash2,
   BarChart2,
-  Maximize2
+  Maximize2,
+  RotateCcw,
+  ArrowLeft,
+  LayoutDashboard
 } from 'lucide-react';
 import {
   Article,
@@ -67,6 +70,7 @@ interface QuickReaderModalProps {
   onAddPhoto?: (photo: PhotoLibraryItem) => void;
   onUpdatePhoto?: (id: string, updated: Partial<PhotoLibraryItem>) => void;
   onDeletePhoto?: (id: string) => void;
+  onOpenAdminDashboard?: () => void;
 }
 
 export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
@@ -86,7 +90,8 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
   photoLibrary = [],
   onAddPhoto,
   onUpdatePhoto,
-  onDeletePhoto
+  onDeletePhoto,
+  onOpenAdminDashboard
 }) => {
   const [fontSizeLevel, setFontSizeLevel] = useState<number>(1); // 0: Small, 1: Normal, 2: Large, 3: XL
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -110,12 +115,17 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
   const [editPullQuote, setEditPullQuote] = useState('');
   const [editImage, setEditImage] = useState('');
   const [editImageCaption, setEditImageCaption] = useState('');
+  const [editMediaType, setEditMediaType] = useState<Article['mediaType']>('article');
+  const [editImageDisplayMode, setEditImageDisplayMode] = useState<Article['imageDisplayMode']>('cover');
   const [editCorrectionNotice, setEditCorrectionNotice] = useState('');
   const [editAuthorName, setEditAuthorName] = useState('');
   const [editAuthorRole, setEditAuthorRole] = useState('');
   const [editAuthorAvatar, setEditAuthorAvatar] = useState('');
   const [photoPickerTarget, setPhotoPickerTarget] = useState<'article' | 'author'>('article');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [showSaveConfirmModal, setShowSaveConfirmModal] = useState(false);
+  const [preEditSnapshot, setPreEditSnapshot] = useState<Article | null>(null);
+  const [undoToast, setUndoToast] = useState('');
 
   // Fact-Check State
   const [isFactCheckExpanded, setIsFactCheckExpanded] = useState(false);
@@ -145,6 +155,8 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       setEditPullQuote(article.pullQuote || '');
       setEditImage(article.image || '');
       setEditImageCaption(article.imageCaption || '');
+      setEditMediaType(article.mediaType || 'article');
+      setEditImageDisplayMode(article.imageDisplayMode || 'cover');
       setEditCorrectionNotice(article.correctionNotice || '');
       setEditAuthorName(article.author?.name || '');
       setEditAuthorRole(article.author?.role || '');
@@ -325,6 +337,9 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       };
     }
 
+    // Save snapshot of original article before this edit for undo support
+    setPreEditSnapshot({ ...article });
+
     if (onUpdateArticle) {
       onUpdateArticle(article.id, {
         title: editTitle.trim(),
@@ -342,6 +357,8 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
         pullQuote: editPullQuote.trim() || undefined,
         image: editImage,
         imageCaption: editImageCaption.trim() || undefined,
+        mediaType: editMediaType,
+        imageDisplayMode: editImageDisplayMode,
         correctionNotice: editCorrectionNotice.trim() || undefined,
         lastEditedAt: nowFormatted,
         workflowLogs: [correctionLog, ...existingLogs],
@@ -349,11 +366,65 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       });
     }
 
-    setSaveSuccessMsg('تم حفظ التعديلات بنجاح واعتماد بيانات كاتب المقال ونشر النسخة المصححة فوراً!');
-    setTimeout(() => {
-      setSaveSuccessMsg('');
-      setIsEditing(false);
-    }, 1800);
+    // Open confirmation dialog directly
+    setShowSaveConfirmModal(true);
+  };
+
+  // Handle User Confirming Save -> Navigate immediately to Admin Dashboard
+  const handleConfirmAndGoToAdmin = () => {
+    setShowSaveConfirmModal(false);
+    setIsEditing(false);
+    onClose();
+    if (onOpenAdminDashboard) {
+      onOpenAdminDashboard();
+    }
+  };
+
+  // Handle User Undoing Save -> Revert article and stay in edit mode
+  const handleUndoSave = () => {
+    if (preEditSnapshot && onUpdateArticle) {
+      onUpdateArticle(preEditSnapshot.id, {
+        title: preEditSnapshot.title,
+        subtitle: preEditSnapshot.subtitle,
+        category: preEditSnapshot.category,
+        categoryId: preEditSnapshot.categoryId,
+        author: preEditSnapshot.author,
+        excerpt: preEditSnapshot.excerpt,
+        content: preEditSnapshot.content,
+        pullQuote: preEditSnapshot.pullQuote,
+        image: preEditSnapshot.image,
+        imageCaption: preEditSnapshot.imageCaption,
+        correctionNotice: preEditSnapshot.correctionNotice,
+        lastEditedAt: preEditSnapshot.lastEditedAt,
+        workflowLogs: preEditSnapshot.workflowLogs,
+        factCheck: preEditSnapshot.factCheck
+      });
+
+      // Restore form fields
+      setEditTitle(preEditSnapshot.title);
+      setEditSubtitle(preEditSnapshot.subtitle || '');
+      setEditCategory(preEditSnapshot.category);
+      setEditCategoryId(preEditSnapshot.categoryId || '');
+      setEditAuthorName(preEditSnapshot.author.name);
+      setEditAuthorRole(preEditSnapshot.author.role);
+      setEditAuthorAvatar(preEditSnapshot.author.avatar || '');
+      setEditExcerpt(preEditSnapshot.excerpt);
+      setEditContentRaw(preEditSnapshot.content.join('\n\n'));
+      setEditPullQuote(preEditSnapshot.pullQuote || '');
+      setEditImage(preEditSnapshot.image);
+      setEditImageCaption(preEditSnapshot.imageCaption || '');
+      setEditCorrectionNotice(preEditSnapshot.correctionNotice || '');
+    }
+
+    setShowSaveConfirmModal(false);
+    setIsEditing(true);
+    setUndoToast('تم التراجع عن حفظ التعديلات واستعادة النسخة السابقة، ويمكنك مواصلة التعديل.');
+    setTimeout(() => setUndoToast(''), 4500);
+  };
+
+  const handleStayInReader = () => {
+    setShowSaveConfirmModal(false);
+    setIsEditing(false);
   };
 
   // Photo picked from library
@@ -362,6 +433,27 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       setEditImage(result.url);
       if (result.caption) {
         setEditImageCaption(result.caption);
+      }
+
+      // Check if the selected image is an infographic or tall format
+      const isInfographic =
+        result.isInfographic === true ||
+        result.preset === 'infographic_vertical' ||
+        result.preset === 'infographic_horizontal' ||
+        result.preset === 'original_no_crop' ||
+        result.preset === 'story_vertical' ||
+        result.fitMode === 'no_crop_scale' ||
+        (result.height && result.width && result.height > result.width * 1.15);
+
+      if (isInfographic) {
+        setEditMediaType('infographic');
+        setEditImageDisplayMode('infographic_vertical');
+      } else if (result.preset === 'standard_photo' || result.preset === 'topic_landscape') {
+        // Only revert to standard article if it was previously an infographic
+        if (editMediaType === 'infographic') {
+          setEditMediaType('article');
+          setEditImageDisplayMode('cover');
+        }
       }
     } else if (photoPickerTarget === 'author') {
       setEditAuthorAvatar(result.url);
@@ -502,6 +594,14 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
               <Edit3 className="w-3.5 h-3.5" />
               <span>{isEditing ? 'العودة لوضع القراءة' : '✏️ تصحيح وتعديل المقال'}</span>
             </button>
+          </div>
+        )}
+
+        {/* Undo Toast Alert Banner */}
+        {undoToast && (
+          <div className="bg-amber-100 dark:bg-amber-950/80 border-b border-amber-300 dark:border-amber-800 px-6 py-2.5 text-xs text-amber-900 dark:text-amber-200 font-bold flex items-center gap-2 animate-fadeIn">
+            <Undo2 className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{undoToast}</span>
           </div>
         )}
 
@@ -728,7 +828,11 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
                     <Camera className="w-4 h-4 text-amber-600" />
-                    <span>الصورة الصحفية للمقال (1200 × 675 - نسبة 16:9)</span>
+                    <span>
+                      {editMediaType === 'infographic' || editImageDisplayMode === 'infographic_vertical'
+                        ? 'صورة الإنفوجرافيك (طولي / عريض كامل بدون قص)'
+                        : 'الصورة الصحفية للمقال (1200 × 675 - نسبة 16:9)'}
+                    </span>
                   </label>
 
                   <button
@@ -737,15 +841,19 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 rounded-lg transition-colors cursor-pointer shadow-xs"
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
-                    <span>اختيار من مكتبة الصور الصحفية</span>
+                    <span>اختيار من مكتبة الصور أو الإنفوجرافيك</span>
                   </button>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 bg-white dark:bg-stone-850 p-3 rounded-xl border border-stone-200 dark:border-stone-800">
-                  <div className="relative w-full sm:w-48 aspect-video rounded-lg overflow-hidden bg-stone-950 shrink-0">
-                    <img src={editImage} alt="Cover" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
-                      1200 × 675 px
+                  <div className={`relative w-full sm:w-48 ${editMediaType === 'infographic' ? 'h-48' : 'aspect-video'} rounded-lg overflow-hidden bg-stone-950 shrink-0 flex items-center justify-center p-1`}>
+                    <img
+                      src={editImage}
+                      alt="Cover"
+                      className={`w-full h-full ${editMediaType === 'infographic' ? 'object-contain' : 'object-cover'}`}
+                    />
+                    <span className="absolute bottom-1 right-1 bg-black/75 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
+                      {editMediaType === 'infographic' ? 'إنفوجرافيك كامل' : '1200 × 675 px'}
                     </span>
                   </div>
 
@@ -1301,7 +1409,7 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                   ))}
                 </div>
 
-                {/* Interactive Feedback Bar (Likes & Comments Counter) */}
+                {/* Interactive Feedback Bar (Likes & Share - Zero Distraction) */}
                 <div className="flex items-center justify-between py-4 border-y border-stone-200 dark:border-stone-800 my-6">
                   <div className="flex items-center gap-3">
                     <button
@@ -1315,91 +1423,106 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                       <Heart className={`w-4 h-4 ${hasLiked ? 'fill-rose-600 text-rose-600' : ''}`} />
                       <span>{article.likes + (hasLiked ? 1 : 0)} إعجاب</span>
                     </button>
-
-                    <div className="flex items-center gap-1.5 text-xs text-stone-500 font-medium">
-                      <MessageSquare className="w-4 h-4" />
-                      <span>{article.comments.length} تعليقات</span>
-                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleCopyLink}
-                      className="text-xs text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white flex items-center gap-1 px-2 py-1 rounded hover:bg-stone-200/50 dark:hover:bg-stone-800 cursor-pointer"
+                      className="text-xs text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer transition-colors"
                     >
                       {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-                      <span>{copiedLink ? 'تم نسخ الرابط!' : 'مشاركة'}</span>
+                      <span>{copiedLink ? 'تم نسخ الرابط!' : 'مشاركة المقال'}</span>
                     </button>
-                  </div>
-                </div>
-
-                {/* Comments Thread */}
-                <div className="space-y-6 pt-4">
-                  <h3 className="text-base font-bold font-headline text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-amber-600" />
-                    <span>تعليقات القراء وملاحظات التقييم ({article.comments.length})</span>
-                  </h3>
-
-                  {/* Add comment form */}
-                  <form onSubmit={handleSubmitComment} className="space-y-3 bg-stone-100/70 dark:bg-stone-900/60 p-4 rounded-lg border border-stone-200 dark:border-stone-800">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input
-                        type="text"
-                        placeholder="اسمك الكريم أو الصفة الأكاديمية..."
-                        value={newCommentAuthor}
-                        onChange={(e) => setNewCommentAuthor(e.target.value)}
-                        className="px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 sm:w-1/3"
-                        required
-                      />
-                    </div>
-                    <textarea
-                      rows={2}
-                      placeholder="شاركنا برأيك أو نقدك البنّاء للمقال..."
-                      value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 leading-relaxed"
-                      required
-                    />
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 rounded transition-colors cursor-pointer"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>نشر التعليق</span>
-                      </button>
-                    </div>
-                  </form>
-
-                  {/* Comments list */}
-                  <div className="space-y-3">
-                    {article.comments.map((comm) => (
-                      <div
-                        key={comm.id}
-                        className="p-3.5 rounded-lg border border-stone-200/80 dark:border-stone-800 bg-white/70 dark:bg-stone-900/40 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-stone-900 dark:text-stone-100">
-                              {comm.authorName}
-                            </span>
-                            {comm.authorRole && (
-                              <span className="text-[10px] text-stone-400">({comm.authorRole})</span>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-stone-400">{comm.date}</span>
-                        </div>
-                        <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed font-body">
-                          {comm.text}
-                        </p>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </div>
             </article>
           )}
         </div>
+
+        {/* Save Confirmation Dialog with 'موافق' (to Admin) or 'تراجع عن الحفظ' */}
+        {showSaveConfirmModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+            <div
+              className="bg-white dark:bg-[#1a1b1f] w-full max-w-md rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 text-center space-y-5 text-stone-900 dark:text-stone-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Success Badge */}
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/80 border-2 border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+
+              {/* Title & Description */}
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-bold font-headline text-stone-900 dark:text-white">
+                  تم حفظ التعديلات بنجاح!
+                </h3>
+                <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
+                  تم اعتماد ونشر النسخة المصححة للمقال وتحديث الصورة والبيانات التحريرية فوراً.
+                </p>
+              </div>
+
+              {/* Article Preview Summary */}
+              <div className="flex items-center gap-3 p-3 bg-stone-50 dark:bg-stone-900/80 border border-stone-200 dark:border-stone-800 rounded-xl text-right">
+                {editImage ? (
+                  <img
+                    src={editImage}
+                    alt=""
+                    className="w-14 h-14 rounded-lg object-cover shrink-0 border border-stone-200 dark:border-stone-700 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-stone-200 dark:bg-stone-800 flex items-center justify-center shrink-0">
+                    <Camera className="w-6 h-6 text-stone-400" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 inline-block mb-1">
+                    {editCategory || 'قسم المقال'}
+                  </span>
+                  <h4 className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                    {editTitle}
+                  </h4>
+                  <p className="text-[10px] text-stone-500 dark:text-stone-400 truncate mt-0.5">
+                    بقلم: {editAuthorName || 'محرر الموقع'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-1">
+                {/* 1. Button: موافق - الانتقال إلى لوحة تحكم الأدمن */}
+                <button
+                  type="button"
+                  onClick={handleConfirmAndGoToAdmin}
+                  className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>موافق (الانتقال إلى لوحة تحكم الأدمن)</span>
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+
+                {/* 2. Button: تراجع عن الحفظ */}
+                <button
+                  type="button"
+                  onClick={handleUndoSave}
+                  className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>تراجع عن الحفظ والعودة للتعديل</span>
+                </button>
+
+                {/* 3. Secondary: Stay in Reader */}
+                <button
+                  type="button"
+                  onClick={handleStayInReader}
+                  className="w-full py-1 text-[11px] text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                >
+                  معاينة المادة في نافذة القراءة
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Photo Library Picker for Edit Mode */}
         {isPhotoPickerOpen && (

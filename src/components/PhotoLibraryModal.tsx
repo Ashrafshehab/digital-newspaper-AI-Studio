@@ -38,6 +38,9 @@ export interface PhotoSelectionResult {
   preset?: PhotoPresetType;
   width?: number;
   height?: number;
+  isInfographic?: boolean;
+  fitMode?: PhotoFitMode;
+  orientation?: 'vertical' | 'horizontal' | 'square';
 }
 
 interface PhotoLibraryModalProps {
@@ -280,7 +283,10 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
         photographer: newPhoto.photographer,
         preset: newPhoto.preset,
         width: newPhoto.width,
-        height: newPhoto.height
+        height: newPhoto.height,
+        isInfographic: newPhoto.isInfographic,
+        fitMode: newPhoto.fitMode,
+        orientation: newPhoto.orientation
       });
       onClose();
       return;
@@ -339,6 +345,25 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
 
     return matchesGroup && matchesPreset && matchesSearch;
   });
+
+  // Helper to determine category group of a photo
+  const getPhotoGroup = (photo: PhotoLibraryItem): 'topic' | 'profile' | 'infographic' => {
+    if (
+      photo.isInfographic === true ||
+      photo.preset === 'infographic_vertical' ||
+      photo.preset === 'infographic_horizontal' ||
+      photo.preset === 'original_no_crop' ||
+      photo.preset === 'story_vertical' ||
+      photo.fitMode === 'no_crop_scale' ||
+      photo.height > photo.width * 1.15
+    ) {
+      return 'infographic';
+    }
+    if (photo.preset === 'profile_square') {
+      return 'profile';
+    }
+    return 'topic';
+  };
 
   const selectedPhoto = photoLibrary.find((p) => p.id === selectedPhotoId);
 
@@ -431,89 +456,134 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
               
               {/* Step 1: Select Main Section (Topic / Profile / Infographic) */}
               <div>
-                <label className="block text-xs font-bold text-stone-800 dark:text-stone-200 mb-2">
-                  1. اختر قسم ونوع الصورة المراد رفعها إلى المكتبة: *
+                <label className="block text-xs font-bold text-stone-800 dark:text-stone-200 mb-2.5">
+                  1. اختر قسم ونوع الصورة (اضغط لتحديد القسم بلونه المميز): *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   
-                  {/* Topic Section Button */}
+                  {/* Topic Section Button - Warm Amber / Orange */}
                   <button
                     type="button"
                     onClick={() => handleSelectUploadGroup('topic')}
-                    className={`p-3.5 rounded-xl border text-right cursor-pointer transition-all flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border-2 text-right cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden shadow-xs ${
                       uploadGroup === 'topic'
-                        ? 'border-amber-600 bg-amber-50/80 dark:bg-amber-950/40 ring-2 ring-amber-600/30 shadow-xs'
-                        : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-850 hover:border-stone-300'
+                        ? 'border-amber-600 bg-amber-500/10 dark:bg-amber-950/50 ring-4 ring-amber-500/20 shadow-md scale-[1.02]'
+                        : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-850 hover:border-amber-300 dark:hover:border-amber-800/60'
                     }`}
                   >
+                    {uploadGroup === 'topic' && (
+                      <div className="absolute top-0 right-0 w-2 h-full bg-amber-600" />
+                    )}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-xs text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
-                          <ImageIcon className="w-4 h-4 text-amber-600" />
-                          <span>الصور الموضوعية (للمقالات والتحقيقات)</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-xs flex items-center gap-2 text-amber-900 dark:text-amber-300">
+                          <span className={`p-1.5 rounded-lg ${
+                            uploadGroup === 'topic' ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400'
+                          }`}>
+                            <ImageIcon className="w-4 h-4" />
+                          </span>
+                          <span>الصور الموضوعية</span>
                         </span>
-                        {uploadGroup === 'topic' && <Check className="w-4 h-4 text-amber-600" />}
+                        {uploadGroup === 'topic' && (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-white bg-amber-600 px-2 py-0.5 rounded-full shadow-xs">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            <span>مُحدد</span>
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-stone-500 leading-relaxed">
-                        صور أفقية قياسية لغلاف الأخبار والتقارير والتحقيقات بنسبة 16:9 و 4:3.
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                        غلاف الأخبار والتحقيقات الصحفية والمقالات (أفقي 16:9 و 4:3).
                       </p>
                     </div>
-                    <div className="mt-2 text-[10px] font-mono text-amber-700 dark:text-amber-400 font-bold">
-                      1200 × 675 px (أفقي)
+                    <div className="mt-3 pt-2 border-t border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between text-[10px] font-bold">
+                      <span className="text-stone-500">المقاس القياسي:</span>
+                      <span className="font-mono text-amber-700 dark:text-amber-400 bg-amber-100/70 dark:bg-amber-900/40 px-2 py-0.5 rounded-md">
+                        1200 × 675 px (أفقي)
+                      </span>
                     </div>
                   </button>
 
-                  {/* Profile Section Button */}
+                  {/* Profile Section Button - Vibrant Blue / Indigo */}
                   <button
                     type="button"
                     onClick={() => handleSelectUploadGroup('profile')}
-                    className={`p-3.5 rounded-xl border text-right cursor-pointer transition-all flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border-2 text-right cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden shadow-xs ${
                       uploadGroup === 'profile'
-                        ? 'border-amber-600 bg-amber-50/80 dark:bg-amber-950/40 ring-2 ring-amber-600/30 shadow-xs'
-                        : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-850 hover:border-stone-300'
+                        ? 'border-blue-600 bg-blue-500/10 dark:bg-blue-950/50 ring-4 ring-blue-500/20 shadow-md scale-[1.02]'
+                        : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-850 hover:border-blue-300 dark:hover:border-blue-800/60'
                     }`}
                   >
+                    {uploadGroup === 'profile' && (
+                      <div className="absolute top-0 right-0 w-2 h-full bg-blue-600" />
+                    )}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-xs text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
-                          <Camera className="w-4 h-4 text-amber-600" />
-                          <span>الصور الشخصية (لهيئة التحرير والبروفايل)</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-xs flex items-center gap-2 text-blue-900 dark:text-blue-300">
+                          <span className={`p-1.5 rounded-lg ${
+                            uploadGroup === 'profile' ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400'
+                          }`}>
+                            <Camera className="w-4 h-4" />
+                          </span>
+                          <span>الصور الشخصية والبروفايل</span>
                         </span>
-                        {uploadGroup === 'profile' && <Check className="w-4 h-4 text-amber-600" />}
+                        {uploadGroup === 'profile' && (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-white bg-blue-600 px-2 py-0.5 rounded-full shadow-xs">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            <span>مُحدد</span>
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-stone-500 leading-relaxed">
-                        صور مربعة للمحررين والكُتّاب وبطاقات المشاركين في مشروع التخرج.
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                        صور هيئة التحرير والكُتّاب والصحفيين والمشاركين في مشروع التخرج.
                       </p>
                     </div>
-                    <div className="mt-2 text-[10px] font-mono text-amber-700 dark:text-amber-400 font-bold">
-                      400 × 400 px (مربع 1:1)
+                    <div className="mt-3 pt-2 border-t border-blue-200/50 dark:border-blue-900/40 flex items-center justify-between text-[10px] font-bold">
+                      <span className="text-stone-500">المقاس القياسي:</span>
+                      <span className="font-mono text-blue-700 dark:text-blue-400 bg-blue-100/70 dark:bg-blue-900/40 px-2 py-0.5 rounded-md">
+                        400 × 400 px (مربع 1:1)
+                      </span>
                     </div>
                   </button>
 
-                  {/* Dedicated Infographic & No-Crop Section Button */}
+                  {/* Dedicated Infographic Section Button - Rich Emerald / Green */}
                   <button
                     type="button"
                     onClick={() => handleSelectUploadGroup('infographic')}
-                    className={`p-3.5 rounded-xl border text-right cursor-pointer transition-all flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border-2 text-right cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden shadow-xs ${
                       uploadGroup === 'infographic'
-                        ? 'border-emerald-600 bg-emerald-50/90 dark:bg-emerald-950/50 ring-2 ring-emerald-600/40 shadow-xs'
-                        : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-850 hover:border-emerald-400'
+                        ? 'border-emerald-600 bg-emerald-500/10 dark:bg-emerald-950/50 ring-4 ring-emerald-500/20 shadow-md scale-[1.02]'
+                        : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-850 hover:border-emerald-300 dark:hover:border-emerald-800/60'
                     }`}
                   >
+                    {uploadGroup === 'infographic' && (
+                      <div className="absolute top-0 right-0 w-2 h-full bg-emerald-600" />
+                    )}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
-                          <BarChart2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          <span>قسم صور الإنفوجرافيك والمخططات (بدون قص)</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-xs flex items-center gap-2 text-emerald-900 dark:text-emerald-300">
+                          <span className={`p-1.5 rounded-lg ${
+                            uploadGroup === 'infographic' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
+                          }`}>
+                            <BarChart2 className="w-4 h-4" />
+                          </span>
+                          <span>الإنفوجرافيك (بدون قص)</span>
                         </span>
-                        {uploadGroup === 'infographic' && <Check className="w-4 h-4 text-emerald-600" />}
+                        {uploadGroup === 'infographic' && (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 px-2 py-0.5 rounded-full shadow-xs">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            <span>مُحدد</span>
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
-                        تصغير الحجم أو استخدام الحجم الطبيعي للإنفوجرافيك رأسياً أو عريضاً بنسبة قص 0%.
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                        تصغير الحجم أو الحجم الطبيعي للإنفوجرافيك رأسياً أو عريضاً بنسبة قص 0%.
                       </p>
                     </div>
-                    <div className="mt-2 text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-bold">
-                      رأسي وعريض (كامل 100%)
+                    <div className="mt-3 pt-2 border-t border-emerald-200/50 dark:border-emerald-900/40 flex items-center justify-between text-[10px] font-bold">
+                      <span className="text-stone-500">خاصية القص:</span>
+                      <span className="font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md">
+                        كامل 100% (قص 0%)
+                      </span>
                     </div>
                   </button>
 
@@ -660,7 +730,11 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                         {/* 4. Full-HD Mobile Vertical */}
                         <div
                           onClick={() => handlePresetChange('infographic_vertical')}
-                          className="p-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/60 text-right"
+                          className={`p-3 rounded-xl border text-right cursor-pointer transition-all ${
+                            uploadPreset === 'infographic_vertical'
+                              ? 'border-emerald-600 bg-white dark:bg-stone-900 ring-2 ring-emerald-600/30'
+                              : 'border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/60 hover:border-emerald-300'
+                          }`}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-bold text-xs text-stone-900 dark:text-stone-100">
@@ -1122,61 +1196,70 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                       setActiveGroupFilter('all');
                       setActivePresetFilter('all');
                     }}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border ${
                       activeGroupFilter === 'all'
-                        ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
+                        ? 'bg-stone-900 text-white border-stone-900 dark:bg-white dark:text-stone-900 dark:border-white shadow-xs'
+                        : 'bg-white dark:bg-stone-850 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800'
                     }`}
                   >
-                    الكل ({photoLibrary.length})
+                    <span>كافة الصور</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      activeGroupFilter === 'all' ? 'bg-white/20 text-white dark:bg-stone-900/20 dark:text-stone-900' : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
+                    }`}>
+                      {photoLibrary.length}
+                    </span>
+                    {activeGroupFilter === 'all' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </button>
 
-                  {/* 1. Topic Section Tab */}
+                  {/* 1. Topic Section Tab - Amber */}
                   <button
                     onClick={() => {
                       setActiveGroupFilter('topic');
                       setActivePresetFilter('all');
                     }}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border ${
                       activeGroupFilter === 'topic'
-                        ? 'bg-amber-700 text-white dark:bg-amber-600'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
+                        ? 'bg-amber-600 text-white border-amber-700 shadow-xs ring-2 ring-amber-500/20'
+                        : 'bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/50 hover:bg-amber-100/80'
                     }`}
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
-                    <span>الصور الموضوعية (للمقالات والتحقيقات)</span>
+                    <span>الصور الموضوعية (المقالات)</span>
+                    {activeGroupFilter === 'topic' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </button>
 
-                  {/* 2. Profile Section Tab */}
+                  {/* 2. Profile Section Tab - Blue */}
                   <button
                     onClick={() => {
                       setActiveGroupFilter('profile');
                       setActivePresetFilter('all');
                     }}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border ${
                       activeGroupFilter === 'profile'
-                        ? 'bg-amber-700 text-white dark:bg-amber-600'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
+                        ? 'bg-blue-600 text-white border-blue-700 shadow-xs ring-2 ring-blue-500/20'
+                        : 'bg-blue-50/60 dark:bg-blue-950/30 text-blue-900 dark:text-blue-300 border-blue-200/80 dark:border-blue-900/50 hover:bg-blue-100/80'
                     }`}
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    <span>الصور الشخصية (لهيئة التحرير والبروفايل)</span>
+                    <span>الصور الشخصية (البروفايل)</span>
+                    {activeGroupFilter === 'profile' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </button>
 
-                  {/* 3. Infographic Section Tab */}
+                  {/* 3. Infographic Section Tab - Emerald */}
                   <button
                     onClick={() => {
                       setActiveGroupFilter('infographic');
                       setActivePresetFilter('all');
                     }}
-                    className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+                    className={`px-3.5 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 border ${
                       activeGroupFilter === 'infographic'
-                        ? 'bg-emerald-700 text-white dark:bg-emerald-600 shadow-xs'
-                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs ring-2 ring-emerald-500/20'
+                        : 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
                     }`}
                   >
                     <BarChart2 className="w-3.5 h-3.5" />
-                    <span className="font-bold">قسم صور الإنفوجرافيك والمخططات (بدون قص)</span>
+                    <span>الإنفوجرافيك والمخططات (بدون قص)</span>
+                    {activeGroupFilter === 'infographic' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </button>
 
                 </div>
@@ -1221,15 +1304,34 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                       photo.fitMode === 'no_crop_scale' ||
                       photo.height > photo.width;
 
+                    // Color theme per category
+                    const photoGroup = getPhotoGroup(photo);
+                    const cardTheme = photoGroup === 'infographic'
+                      ? {
+                          border: isSelected ? 'border-emerald-600 ring-4 ring-emerald-500/25 shadow-lg scale-[1.01]' : 'border-stone-200 dark:border-stone-800 hover:border-emerald-300 dark:hover:border-emerald-700/60',
+                          badgeBg: 'bg-emerald-600',
+                          checkBg: 'bg-emerald-600 text-white',
+                          subtleBg: isSelected ? 'bg-emerald-500/5 dark:bg-emerald-950/20' : ''
+                        }
+                      : photoGroup === 'profile'
+                      ? {
+                          border: isSelected ? 'border-blue-600 ring-4 ring-blue-500/25 shadow-lg scale-[1.01]' : 'border-stone-200 dark:border-stone-800 hover:border-blue-300 dark:hover:border-blue-700/60',
+                          badgeBg: 'bg-blue-600',
+                          checkBg: 'bg-blue-600 text-white',
+                          subtleBg: isSelected ? 'bg-blue-500/5 dark:bg-blue-950/20' : ''
+                        }
+                      : {
+                          border: isSelected ? 'border-amber-600 ring-4 ring-amber-500/25 shadow-lg scale-[1.01]' : 'border-stone-200 dark:border-stone-800 hover:border-amber-300 dark:hover:border-amber-700/60',
+                          badgeBg: 'bg-amber-600',
+                          checkBg: 'bg-amber-600 text-white',
+                          subtleBg: isSelected ? 'bg-amber-500/5 dark:bg-amber-950/20' : ''
+                        };
+
                     return (
                       <div
                         key={photo.id}
                         onClick={() => setSelectedPhotoId(photo.id)}
-                        className={`rounded-2xl border overflow-hidden transition-all bg-white dark:bg-stone-850 cursor-pointer flex flex-col ${
-                          isSelected
-                            ? 'border-amber-600 ring-2 ring-amber-600/30 shadow-md'
-                            : 'border-stone-200 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700'
-                        }`}
+                        className={`rounded-2xl border-2 overflow-hidden transition-all bg-white dark:bg-stone-850 cursor-pointer flex flex-col relative ${cardTheme.border} ${cardTheme.subtleBg}`}
                       >
                         {/* Image Preview with Contain for Tall Graphics */}
                         <div className={`relative ${isTall ? 'h-64' : 'aspect-video'} bg-stone-950 overflow-hidden flex items-center justify-center group`}>
@@ -1240,6 +1342,16 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                               isTall || photo.fitMode === 'no_crop_scale' ? 'object-contain p-1' : 'object-cover'
                             }`}
                           />
+
+                          {/* Selected Checkmark Overlay Badge */}
+                          {isSelected && (
+                            <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold text-xs shadow-md animate-scaleIn bg-stone-900/90 text-white border border-white/30 backdrop-blur-xs">
+                              <span className={`p-0.5 rounded-full ${cardTheme.checkBg}`}>
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              </span>
+                              <span>تم الاختيار ✓</span>
+                            </div>
+                          )}
 
                           {/* Presets and Badges */}
                           <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
@@ -1356,13 +1468,36 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
         {/* Modal Footer with Selection Actions */}
         {onSelectPhoto && !isUploading && (
           <div className="px-6 py-3 border-t border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 flex items-center justify-between">
-            <div className="text-xs text-stone-500">
+            <div className="text-xs">
               {selectedPhoto ? (
-                <span className="text-stone-900 dark:text-stone-100 font-bold">
-                  الصورة المحددة: {selectedPhoto.title} ({selectedPhoto.width} × {selectedPhoto.height} px)
-                </span>
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const selGroup = getPhotoGroup(selectedPhoto);
+                    return (
+                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 shadow-2xs ${
+                        selGroup === 'infographic'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                          : selGroup === 'profile'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                      }`}>
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>{selGroup === 'infographic' ? 'إنفوجرافيك كامل' : selGroup === 'profile' ? 'بروفايل شخصي' : 'صورة موضوعية'}</span>
+                      </span>
+                    );
+                  })()}
+                  <span className="text-stone-900 dark:text-stone-100 font-bold">
+                    {selectedPhoto.title}
+                  </span>
+                  <span className="font-mono text-[11px] text-stone-500">
+                    ({selectedPhoto.width} × {selectedPhoto.height} px)
+                  </span>
+                </div>
               ) : (
-                <span>الرجاء النقر على صورة لاختيارها</span>
+                <span className="text-stone-500 flex items-center gap-1.5">
+                  <HelpCircle className="w-3.5 h-3.5 text-stone-400" />
+                  <span>انقر على أي صورة في المعرض لتحديدها واعتمادها</span>
+                </span>
               )}
             </div>
 
@@ -1379,6 +1514,15 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                 disabled={!selectedPhoto}
                 onClick={() => {
                   if (selectedPhoto) {
+                    const isInfographic =
+                      selectedPhoto.isInfographic === true ||
+                      selectedPhoto.preset === 'infographic_vertical' ||
+                      selectedPhoto.preset === 'infographic_horizontal' ||
+                      selectedPhoto.preset === 'original_no_crop' ||
+                      selectedPhoto.preset === 'story_vertical' ||
+                      selectedPhoto.fitMode === 'no_crop_scale' ||
+                      (selectedPhoto.height && selectedPhoto.width && selectedPhoto.height > selectedPhoto.width * 1.15);
+
                     onSelectPhoto({
                       url: selectedPhoto.url,
                       caption: selectedPhoto.caption,
@@ -1386,7 +1530,10 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                       photographer: selectedPhoto.photographer,
                       preset: selectedPhoto.preset,
                       width: selectedPhoto.width,
-                      height: selectedPhoto.height
+                      height: selectedPhoto.height,
+                      isInfographic,
+                      fitMode: selectedPhoto.fitMode || (isInfographic ? 'no_crop_scale' : 'crop_cover'),
+                      orientation: selectedPhoto.orientation || (isInfographic ? 'vertical' : undefined)
                     });
                     onClose();
                   }

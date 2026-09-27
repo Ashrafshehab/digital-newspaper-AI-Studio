@@ -129,15 +129,49 @@ export default function App() {
           }
           return c;
         });
-        // Ensure multimedia category is included if missing in previous localStorage
-        const hasMultimedia = parsed.some((c) => c.id === 'multimedia');
+
+        // Ensure multimedia category is included if missing
+        const hasMultimedia = parsed.some((c) => c.id === 'multimedia' || c.name.trim() === 'وسائط وملتيميديا');
         if (!hasMultimedia) {
           const multimediaCat = CATEGORIES.find((c) => c.id === 'multimedia');
           if (multimediaCat) {
-            return [parsed[0], multimediaCat, ...parsed.slice(1)];
+            parsed = [parsed[0], multimediaCat, ...parsed.slice(1)];
           }
         }
-        return parsed;
+
+        // Deduplicate strictly by ID, slug, and normalized name to ensure only ONE multimedia tab exists
+        const seenIds = new Set<string>();
+        const seenNames = new Set<string>();
+        const deduped: Category[] = [];
+
+        for (const cat of parsed) {
+          const normName = cat.name.trim().toLowerCase();
+          const normId = (cat.id || cat.slug).trim().toLowerCase();
+
+          // If it's a multimedia category with an ad-hoc ID or duplicate name, normalize to 'multimedia'
+          if (normName === 'وسائط وملتيميديا' || normId === 'multimedia') {
+            if (seenIds.has('multimedia') || seenNames.has('وسائط وملتيميديا')) {
+              continue; // Skip duplicate
+            }
+            seenIds.add('multimedia');
+            seenNames.add('وسائط وملتيميديا');
+            deduped.push({
+              id: 'multimedia',
+              slug: 'multimedia',
+              name: 'وسائط وملتيميديا',
+              description: cat.description || 'فيديوهات وإنفوجرافيك وبودكاست وتقارير مصورة'
+            });
+            continue;
+          }
+
+          if (!seenIds.has(normId) && !seenNames.has(normName)) {
+            seenIds.add(normId);
+            seenNames.add(normName);
+            deduped.push(cat);
+          }
+        }
+
+        return deduped.length > 0 ? deduped : CATEGORIES;
       } catch {
         return CATEGORIES;
       }
@@ -604,6 +638,7 @@ export default function App() {
         onAddPhoto={handleAddPhoto}
         onUpdatePhoto={handleUpdatePhoto}
         onDeletePhoto={handleDeletePhoto}
+        onOpenAdminDashboard={handleOpenEditorialPortal}
       />
 
       {/* 7. Password-Protected Editorial Login Modal */}

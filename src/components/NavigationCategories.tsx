@@ -19,6 +19,20 @@ export const NavigationCategories: React.FC<NavigationCategoriesProps> = ({
   onChangeViewMode,
   totalArticlesCount
 }) => {
+  // Defensive deduplication to ensure exactly one tab exists per name/id
+  const uniqueCategories = React.useMemo(() => {
+    const seen = new Set<string>();
+    return categories.filter((cat) => {
+      const key = `${cat.id}-${cat.name.trim().toLowerCase()}`;
+      if (seen.has(key) || seen.has(cat.name.trim().toLowerCase())) {
+        return false;
+      }
+      seen.add(key);
+      seen.add(cat.name.trim().toLowerCase());
+      return true;
+    });
+  }, [categories]);
+
   return (
     <div className="sticky top-0 z-30 bg-[#FBF9F5]/95 dark:bg-[#0c0d0e]/95 backdrop-blur-md border-b border-stone-300 dark:border-stone-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
@@ -26,7 +40,7 @@ export const NavigationCategories: React.FC<NavigationCategoriesProps> = ({
           
           {/* Categories Navigation Links */}
           <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {categories.map((cat) => {
+            {uniqueCategories.map((cat) => {
               const isActive = selectedCategoryId === cat.id;
               return (
                 <button

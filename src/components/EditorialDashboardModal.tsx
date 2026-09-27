@@ -604,12 +604,19 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
   const handleAddNewCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCatName.trim()) return;
+    const trimmedName = newCatName.trim();
+    if (!trimmedName) return;
+
+    if (categories.some((c) => c.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+      alert('هذا القسم موجود بالفعل في شريط الأقسام الصحفية.');
+      return;
+    }
+
     const slug = `cat-${Date.now()}`;
     const newCat: Category = {
       id: slug,
       slug,
-      name: newCatName.trim(),
+      name: trimmedName,
       description: newCatDesc.trim() || 'قسم صحفي معتمد'
     };
     onUpdateCategories([...categories, newCat]);
