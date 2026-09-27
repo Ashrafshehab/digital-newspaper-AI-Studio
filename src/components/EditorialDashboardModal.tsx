@@ -36,7 +36,10 @@ import {
   Check,
   AlertTriangle,
   FolderOpen,
-  BarChart3
+  BarChart3,
+  BarChart2,
+  Smartphone,
+  Monitor
 } from 'lucide-react';
 import {
   Article,
@@ -47,6 +50,7 @@ import {
   EditorialRole,
   PhotoLibraryItem,
   PhotoPresetType,
+  PhotoCategoryGroup,
   FactCheckInfo,
   FactCheckVerdict
 } from '../types/newspaper';
@@ -155,6 +159,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   // Photo Selector Modal Sub-states
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [photoPickerTarget, setPhotoPickerTarget] = useState<'article' | 'profile' | 'new_user' | 'edit_user' | 'compose_author' | 'inspected_author' | 'inspected_article'>('article');
+  const [photoPickerGroup, setPhotoPickerGroup] = useState<PhotoCategoryGroup>('all');
+  const [photoPickerOrientation, setPhotoPickerOrientation] = useState<'vertical' | 'horizontal'>('vertical');
+  const [dashboardPhotoFilter, setDashboardPhotoFilter] = useState<PhotoCategoryGroup>('all');
 
   // Categories editing state
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -1915,109 +1922,284 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
           ) : activeTab === 'photos' ? (
             /* TAB 3: PHOTO LIBRARY FULL EMBEDDED MANAGEMENT */
             <div className="space-y-4 animate-fadeIn">
-              <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              {/* Header Box */}
+              <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold font-headline text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
                     <Camera className="w-4 h-4 text-amber-600" />
-                    <span>مكتبة الصور والوسائط الصحفية (Photo Library)</span>
+                    <span>مكتبة الصور والوسائط الصحفية والإنفوجرافيك</span>
                   </h4>
                   <p className="text-xs text-amber-900 dark:text-amber-300">
-                    ارفع صور المقالات أو الصور الشخصية للمحررين مع ضبط أوتوماتيكي للأبعاد حسب مقاسات القالب المعتمدة.
+                    ارفع صور المقالات، صور البروفايل، أو الإنفوجرافيك الطولي والعريض مع المحافظة على كامل الأبعاد بدون قص.
                   </p>
                 </div>
 
-                <button
-                  onClick={() => {
-                    setPhotoPickerTarget('article');
-                    setIsPhotoPickerOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 rounded-lg transition-colors cursor-pointer shadow-sm"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>رفع صورة جديدة وضبط أبعادها</span>
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      setPhotoPickerGroup('topic');
+                      setPhotoPickerTarget('article');
+                      setIsPhotoPickerOpen(true);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-stone-200 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-amber-600" />
+                    <span>رفع صورة موضوعية (16:9)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPhotoPickerGroup('profile');
+                      setPhotoPickerTarget('profile');
+                      setIsPhotoPickerOpen(true);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-stone-200 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <User className="w-3.5 h-3.5 text-amber-600" />
+                    <span>رفع صورة شخصية (1:1)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPhotoPickerGroup('infographic');
+                      setPhotoPickerTarget('article');
+                      setIsPhotoPickerOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer shadow-sm"
+                  >
+                    <BarChart2 className="w-3.5 h-3.5" />
+                    <span>رفع إنفوجرافيك بدون قص</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Guidelines Box */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 space-y-1">
-                  <div className="flex items-center justify-between font-bold text-stone-900 dark:text-stone-100">
-                    <span>الصور الموضوعية (للمقالات والتحقيقات):</span>
-                    <span className="font-mono text-amber-600 text-[11px] bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded">
-                      1200 × 675 px (16:9)
-                    </span>
+              {/* Three Dedicated Sections Guidelines Box */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                
+                {/* 1. Topic Photos Section Card */}
+                <div className="p-3.5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 space-y-2 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between font-bold text-stone-900 dark:text-stone-100">
+                      <span className="flex items-center gap-1">
+                        <ImageIcon className="w-3.5 h-3.5 text-amber-600" />
+                        <span>الصور الموضوعية (للمقالات والتحقيقات):</span>
+                      </span>
+                      <span className="font-mono text-amber-600 text-[10px] bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded font-bold">
+                        1200 × 675 px (16:9)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 leading-relaxed">
+                      المقاس المعتمد لكافة التقارير والأخبار والتحقيقات الصحفية لتجنب قص أطراف الصورة على مختلف الشاشات.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-stone-500">
-                    تنبيه: يجب استخدام هذه النسبة لكافة التقارير والأخبار لتجنب قص أطراف الصورة على شاشات الهواتف والكمبيوتر.
-                  </p>
+                  <button
+                    onClick={() => {
+                      setPhotoPickerGroup('topic');
+                      setPhotoPickerTarget('article');
+                      setIsPhotoPickerOpen(true);
+                    }}
+                    className="w-full text-center py-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    + رفع صورة موضوعية
+                  </button>
                 </div>
 
-                <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 space-y-1">
-                  <div className="flex items-center justify-between font-bold text-stone-900 dark:text-stone-100">
-                    <span>الصور الشخصية (لهيئة التحرير والبروفايل):</span>
-                    <span className="font-mono text-amber-600 text-[11px] bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded">
-                      400 × 400 px (1:1 مربعة)
-                    </span>
+                {/* 2. Profile Photos Section Card */}
+                <div className="p-3.5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 space-y-2 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between font-bold text-stone-900 dark:text-stone-100">
+                      <span className="flex items-center gap-1">
+                        <Camera className="w-3.5 h-3.5 text-amber-600" />
+                        <span>الصور الشخصية (لهيئة التحرير والبروفايل):</span>
+                      </span>
+                      <span className="font-mono text-amber-600 text-[10px] bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded font-bold">
+                        400 × 400 px (1:1)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 leading-relaxed">
+                      يتم ضبط صور المحررين بنسبة مربعة متناسقة ليتم عرضها بنقاء دائري في بروفايل الكاتب وبطاقات التحرير.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-stone-500">
-                    تنبيه: يتم ضبط صور المحررين بنسبة مربعة ليتم عرضها دائرياً وبدقة عالية في البروفايل وبطاقات الأخبار.
-                  </p>
+                  <button
+                    onClick={() => {
+                      setPhotoPickerGroup('profile');
+                      setPhotoPickerTarget('profile');
+                      setIsPhotoPickerOpen(true);
+                    }}
+                    className="w-full text-center py-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    + رفع صورة شخصية
+                  </button>
                 </div>
+
+                {/* 3. Infographic & Charts Section Card with Explicit Description */}
+                <div className="p-3.5 bg-emerald-50/80 dark:bg-emerald-950/40 rounded-xl border border-emerald-300 dark:border-emerald-800 space-y-2 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between font-bold text-emerald-950 dark:text-emerald-100">
+                      <span className="flex items-center gap-1">
+                        <BarChart2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>قسم صور الإنفوجرافيك والمخططات:</span>
+                      </span>
+                      <span className="font-mono text-emerald-700 dark:text-emerald-300 text-[10px] bg-white dark:bg-emerald-900/80 px-1.5 py-0.5 rounded font-bold border border-emerald-300 dark:border-emerald-700">
+                        رأسي / عريض (0% قص)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                      هذا القسم مخصص لصور الإنفوجرافيك والرسوم البيانية والصور التي يتم استخدام حجمها الطبيعي أو تصغيرها بدون قص، مع إتاحة خيارات وضع الصورة عريضاً أو رأسياً، وقائمة خيارات بمقاسات مختلفة يختار المحرر من بينها المقاس الذي يريده للصورة دون أي اقتطاع.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPhotoPickerGroup('infographic');
+                      setPhotoPickerTarget('article');
+                      setIsPhotoPickerOpen(true);
+                    }}
+                    className="w-full text-center py-1.5 text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  >
+                    + رفع إنفوجرافيك / صورة بدون قص
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Photo Filter Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+                <button
+                  onClick={() => setDashboardPhotoFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    dashboardPhotoFilter === 'all'
+                      ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
+                      : 'bg-stone-100 dark:bg-stone-850 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
+                  }`}
+                >
+                  الكل ({photoLibrary.length})
+                </button>
+                <button
+                  onClick={() => setDashboardPhotoFilter('topic')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                    dashboardPhotoFilter === 'topic'
+                      ? 'bg-amber-700 text-white dark:bg-amber-600'
+                      : 'bg-stone-100 dark:bg-stone-850 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
+                  }`}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>الصور الموضوعية (للمقالات والتحقيقات)</span>
+                </button>
+                <button
+                  onClick={() => setDashboardPhotoFilter('profile')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                    dashboardPhotoFilter === 'profile'
+                      ? 'bg-amber-700 text-white dark:bg-amber-600'
+                      : 'bg-stone-100 dark:bg-stone-850 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>الصور الشخصية (لهيئة التحرير)</span>
+                </button>
+                <button
+                  onClick={() => setDashboardPhotoFilter('infographic')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                    dashboardPhotoFilter === 'infographic'
+                      ? 'bg-emerald-700 text-white dark:bg-emerald-600'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
+                  }`}
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  <span>قسم صور الإنفوجرافيك والمخططات (بدون قص)</span>
+                </button>
               </div>
 
               {/* Photo Library Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {photoLibrary.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden flex flex-col justify-between shadow-2xs hover:shadow-md transition-shadow"
-                  >
-                    <div className="relative aspect-video bg-stone-950">
-                      <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
-                      <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-mono">
-                        {photo.width} × {photo.height} px
-                      </span>
-                    </div>
+                {photoLibrary
+                  .filter((photo) => {
+                    if (dashboardPhotoFilter === 'topic') {
+                      return photo.preset === 'topic_landscape' || photo.preset === 'standard_photo' || photo.preset === 'banner_wide';
+                    }
+                    if (dashboardPhotoFilter === 'profile') {
+                      return photo.preset === 'profile_square';
+                    }
+                    if (dashboardPhotoFilter === 'infographic') {
+                      return (
+                        photo.isInfographic === true ||
+                        photo.preset === 'infographic_vertical' ||
+                        photo.preset === 'infographic_horizontal' ||
+                        photo.preset === 'original_no_crop' ||
+                        photo.preset === 'story_vertical' ||
+                        photo.fitMode === 'no_crop_scale' ||
+                        photo.height > photo.width * 1.15
+                      );
+                    }
+                    return true;
+                  })
+                  .map((photo) => {
+                    const isTall =
+                      photo.preset === 'infographic_vertical' ||
+                      photo.isInfographic ||
+                      photo.fitMode === 'no_crop_scale' ||
+                      photo.height > photo.width;
 
-                    <div className="p-3 space-y-1.5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h5 className="text-xs font-bold text-stone-900 dark:text-stone-100 line-clamp-1">
-                          {photo.title}
-                        </h5>
-                        <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed mt-0.5">
-                          {photo.caption || 'لا يوجد تعليق'}
-                        </p>
-                      </div>
+                    return (
+                      <div
+                        key={photo.id}
+                        className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden flex flex-col justify-between shadow-2xs hover:shadow-md transition-shadow"
+                      >
+                        <div className={`relative ${isTall ? 'h-64' : 'aspect-video'} bg-stone-950`}>
+                          <img
+                            src={photo.url}
+                            alt={photo.title}
+                            className={`w-full h-full ${isTall || photo.fitMode === 'no_crop_scale' ? 'object-contain p-1' : 'object-cover'}`}
+                          />
+                          <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-mono">
+                            {photo.width} × {photo.height} px
+                          </span>
+                          {isTall && (
+                            <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[9px] px-2 py-0.5 rounded font-bold shadow-xs">
+                              إنفوجرافيك كامل (بدون قص)
+                            </span>
+                          )}
+                        </div>
 
-                      <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-[10px] text-stone-400">
-                        <span>{photo.photographer || 'MTI'}</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setSelectedImage(photo.url);
-                              if (photo.caption) setImageCaption(photo.caption);
-                              setActiveTab('compose');
-                            }}
-                            className="text-amber-700 dark:text-amber-400 hover:underline font-bold cursor-pointer"
-                          >
-                            استخدام للمقال ←
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('هل أنت متأكد من حذف هذه الصورة؟')) {
-                                onDeletePhoto(photo.id);
-                              }
-                            }}
-                            className="text-stone-400 hover:text-rose-600 p-1 cursor-pointer"
-                            title="حذف"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="p-3 space-y-1.5 flex-1 flex flex-col justify-between">
+                          <div>
+                            <h5 className="text-xs font-bold text-stone-900 dark:text-stone-100 line-clamp-1">
+                              {photo.title}
+                            </h5>
+                            <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed mt-0.5">
+                              {photo.caption || 'لا يوجد تعليق'}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-[10px] text-stone-400">
+                            <span>{photo.photographer || 'تصميم صحفي'}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedImage(photo.url);
+                                  if (photo.caption) setImageCaption(photo.caption);
+                                  setActiveTab('compose');
+                                }}
+                                className="text-amber-700 dark:text-amber-400 hover:underline font-bold cursor-pointer"
+                              >
+                                استخدام للمقال ←
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('هل أنت متأكد من حذف هذه الصورة؟')) {
+                                    onDeletePhoto(photo.id);
+                                  }
+                                }}
+                                className="text-stone-400 hover:text-rose-600 p-1 cursor-pointer"
+                                title="حذف"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
               </div>
             </div>
           ) : activeTab === 'categories' ? (
@@ -2876,6 +3058,12 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
           onUpdatePhoto={onUpdatePhoto}
           onDeletePhoto={onDeletePhoto}
           onSelectPhoto={handlePhotoPicked}
+          initialGroup={
+            photoPickerTarget === 'article' || photoPickerTarget === 'inspected_article'
+              ? photoPickerGroup
+              : 'profile'
+          }
+          initialOrientation={photoPickerOrientation}
           initialPresetFilter={
             photoPickerTarget === 'article' || photoPickerTarget === 'inspected_article'
               ? 'all'
@@ -2883,7 +3071,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
           }
           modalTitle={
             photoPickerTarget === 'article' || photoPickerTarget === 'inspected_article'
-              ? 'اختيار صورة موضوعية أو إنفوجرافيك للمقال (أفقي أو رأسي بدون قص)'
+              ? photoPickerGroup === 'infographic'
+                ? 'قسم صور الإنفوجرافيك والمخططات البيانية (الحجم الطبيعي وبدون قص)'
+                : 'اختيار صورة موضوعية أو إنفوجرافيك للمقال (أفقي أو رأسي بدون قص)'
               : photoPickerTarget === 'compose_author' || photoPickerTarget === 'inspected_author'
               ? 'اختيار صورة شخصية لكاتب المقال (400 × 400)'
               : photoPickerTarget === 'edit_user'

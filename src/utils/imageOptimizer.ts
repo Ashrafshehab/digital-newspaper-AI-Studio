@@ -5,73 +5,22 @@ export interface OptimizeOptions {
   quality?: number;
   backgroundColor?: string;
   maxDimension?: number;
+  scalePercentage?: number;
 }
 
 export const PHOTO_PRESETS: Record<PhotoPresetType, PhotoPresetConfig> = {
+  // 1. قسم الصور الموضوعية (للمقالات والتقارير والتحقيقات)
   topic_landscape: {
     id: 'topic_landscape',
     label: 'صورة موضوعية أفقية (المقال والتحقيق)',
     recommendedWidth: 1200,
     recommendedHeight: 675,
     aspectRatio: '16:9',
-    usageDescription: 'المقاس المعتمد لغلاف المقالات والتحقيقات الصحفية والقارئ السريع ليملأ الشاشة بدقة عالية دون أي تشويه أو تمدد.',
+    usageDescription: 'المقاس المعتمد لغلاف المقالات والتقارير والتحقيقات الصحفية والقارئ السريع ليملأ الشاشة بدقة عالية.',
     badge: '1200 × 675 (أفقي 16:9)',
     isVertical: false,
-    defaultFitMode: 'crop_cover'
-  },
-  infographic_vertical: {
-    id: 'infographic_vertical',
-    label: 'إنفوجرافيك طولي كامل (بدون أي قص)',
-    recommendedWidth: 1080,
-    recommendedHeight: 2800,
-    aspectRatio: 'رأسي مرن (100% كامل)',
-    usageDescription: 'مخصص للإنفوجرافيك الطويل، رسوم البيانات الإحصائية، والمخططات الرأسية، مع المحافظة على كامل الارتفاع والبيانات بنسبة 100% دون أي اقتصاص.',
-    badge: 'إنفوجرافيك رأسي (بدون قص)',
-    isVertical: true,
-    defaultFitMode: 'no_crop_scale'
-  },
-  original_no_crop: {
-    id: 'original_no_crop',
-    label: 'تصغير الحجم مع الحفاظ على النسبة الأصلية (بدون قص)',
-    recommendedWidth: 1400,
-    recommendedHeight: 1400,
-    aspectRatio: 'النسبة الأصلية 100%',
-    usageDescription: 'يقوم بتصغير حجم الملف وضغطه بذكاء دون اقتصاص أي بكسل من أبعاد الصورة سواء كانت أفقية أو رأسية.',
-    badge: 'النسبة الأصلية (بدون قص)',
-    isVertical: false,
-    defaultFitMode: 'no_crop_scale'
-  },
-  story_vertical: {
-    id: 'story_vertical',
-    label: 'تقرير / قصة رأسية (ستوري مصور)',
-    recommendedWidth: 1080,
-    recommendedHeight: 1350,
-    aspectRatio: '4:5 رأسي',
-    usageDescription: 'المقاس المعتمد للقصص الرأسية، الصور الإخبارية المستطيلة طولياً، والتقارير المصورة الحديثة لشاشات الهواتف.',
-    badge: '1080 × 1350 (رأسي 4:5)',
-    isVertical: true,
-    defaultFitMode: 'no_crop_scale'
-  },
-  profile_square: {
-    id: 'profile_square',
-    label: 'صورة شخصية للمحرر / بروفايل',
-    recommendedWidth: 400,
-    recommendedHeight: 400,
-    aspectRatio: '1:1',
-    usageDescription: 'المقاس المعتمد للصور الشخصية لهيئة التحرير، بروفايل الكتّاب، والبطاقات التحريرية، ويتم اقتصاصها وتوسيطها بنقاء متناهٍ وخفة تحميل.',
-    badge: '400 × 400 (مربع 1:1)',
-    isVertical: false,
-    defaultFitMode: 'crop_cover'
-  },
-  banner_wide: {
-    id: 'banner_wide',
-    label: 'بانر عريض / تغطية خاصة',
-    recommendedWidth: 1600,
-    recommendedHeight: 600,
-    aspectRatio: '8:3 عريض',
-    usageDescription: 'المقاس المعتمد للملفات الصحفية التفاعلية، مشروعات التخرج، والبانرات التحريرية العريضة.',
-    badge: '1600 × 600 (عريض 8:3)',
-    isVertical: false,
+    orientation: 'horizontal',
+    group: 'topic',
     defaultFitMode: 'crop_cover'
   },
   standard_photo: {
@@ -81,9 +30,93 @@ export const PHOTO_PRESETS: Record<PhotoPresetType, PhotoPresetConfig> = {
     recommendedHeight: 750,
     aspectRatio: '4:3',
     usageDescription: 'المقاس المعتمد للقطات الميدانية من الحرم الجامعي، مقابلات الشخصيات، والندوات الأكاديمية.',
-    badge: '1000 × 750 (4:3)',
+    badge: '1000 × 750 (أفقي 4:3)',
     isVertical: false,
+    orientation: 'horizontal',
+    group: 'topic',
     defaultFitMode: 'crop_cover'
+  },
+  banner_wide: {
+    id: 'banner_wide',
+    label: 'بانر عريض / تغطية تفاعلية خاصة',
+    recommendedWidth: 1600,
+    recommendedHeight: 600,
+    aspectRatio: '8:3 عريض',
+    usageDescription: 'المقاس المعتمد للملفات الصحفية التفاعلية، مشروعات التخرج، والبانرات التحريرية العريضة.',
+    badge: '1600 × 600 (عريض 8:3)',
+    isVertical: false,
+    orientation: 'horizontal',
+    group: 'topic',
+    defaultFitMode: 'crop_cover'
+  },
+
+  // 2. قسم الصور الشخصية (لهيئة التحرير والبروفايل)
+  profile_square: {
+    id: 'profile_square',
+    label: 'صورة شخصية للمحرر / بروفايل',
+    recommendedWidth: 400,
+    recommendedHeight: 400,
+    aspectRatio: '1:1',
+    usageDescription: 'المقاس المعتمد للصور الشخصية لهيئة التحرير، بروفايل الكتّاب، والبطاقات التحريرية، ويتم اقتصاصها وتوسيطها بنقاء متناهٍ.',
+    badge: '400 × 400 (مربع 1:1)',
+    isVertical: false,
+    orientation: 'square',
+    group: 'profile',
+    defaultFitMode: 'crop_cover'
+  },
+
+  // 3. قسم صور الإنفوجرافيك والمخططات البيانية (حجم طبيعي وتصغير بدون قص)
+  infographic_vertical: {
+    id: 'infographic_vertical',
+    label: 'إنفوجرافيك طولي كامل (بدون أي قص)',
+    recommendedWidth: 1080,
+    recommendedHeight: 2800,
+    aspectRatio: 'رأسي مرن (100% كامل)',
+    usageDescription: 'مخصص للإنفوجرافيك الطويل، رسوم البيانات الإحصائية، والمخططات الرأسية، مع المحافظة على كامل الارتفاع والبيانات بنسبة 100% دون أي اقتصاص.',
+    badge: 'رأسي: طولي فائق (بدون قص)',
+    isVertical: true,
+    orientation: 'vertical',
+    group: 'infographic',
+    defaultFitMode: 'no_crop_scale'
+  },
+  story_vertical: {
+    id: 'story_vertical',
+    label: 'إنفوجرافيك / قصة رأسية لشاشات الهواتف',
+    recommendedWidth: 1080,
+    recommendedHeight: 1350,
+    aspectRatio: '4:5 رأسي',
+    usageDescription: 'المقاس المعتمد للقصص الرأسية، الإنفوجرافيك المتوسط، والتقارير المصورة لشاشات الهواتف والشبكات الاجتماعية بدون قص.',
+    badge: 'رأسي: 1080 × 1350 (4:5)',
+    isVertical: true,
+    orientation: 'vertical',
+    group: 'infographic',
+    defaultFitMode: 'no_crop_scale'
+  },
+  infographic_horizontal: {
+    id: 'infographic_horizontal',
+    label: 'إنفوجرافيك عريض ومخطط بياني أفقي (بدون أي قص)',
+    recommendedWidth: 1920,
+    recommendedHeight: 1080,
+    aspectRatio: 'أفقي كامل (16:9)',
+    usageDescription: 'مخصص للرسوم البيانية العريضة، الخرائط التوضيحية، والجداول الإحصائية الأفقية، مع الحفاظ على كامل التفاصيل بدون قص.',
+    badge: 'عريض: 1920 × 1080 (أفقي 16:9)',
+    isVertical: false,
+    orientation: 'horizontal',
+    group: 'infographic',
+    defaultFitMode: 'no_crop_scale'
+  },
+  original_no_crop: {
+    id: 'original_no_crop',
+    label: 'الحجم الطبيعي 100% أو تصغير متناسب (بدون أي قص)',
+    recommendedWidth: 1600,
+    recommendedHeight: 2400,
+    aspectRatio: 'النسبة الطبيعية 100%',
+    usageDescription: 'يقوم باستخدام الحجم الطبيعي للصورة أو تصغيرها مع ضغط ذكي دون اقتطاع أي بكسل من أبعاد الصورة سواء كانت أفقية أو رأسية.',
+    badge: 'الحجم الطبيعي (بدون قص)',
+    isVertical: false,
+    orientation: 'vertical',
+    group: 'infographic',
+    defaultFitMode: 'no_crop_scale'
   }
 };
 
@@ -145,7 +178,12 @@ export async function optimizeAndResizeImage(
           const maxW = targetWidth > 0 ? targetWidth : 1200;
           const maxH = targetHeight > 0 ? targetHeight : 2800;
 
-          const scaleRatio = Math.min(1, maxW / origW, maxH / origH);
+          let scaleRatio = 1;
+          if (options.scalePercentage && options.scalePercentage > 0 && options.scalePercentage <= 100) {
+            scaleRatio = options.scalePercentage / 100;
+          } else {
+            scaleRatio = Math.min(1, maxW / origW, maxH / origH);
+          }
           finalWidth = Math.max(1, Math.round(origW * scaleRatio));
           finalHeight = Math.max(1, Math.round(origH * scaleRatio));
 

@@ -1411,10 +1411,10 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
             onUpdatePhoto={onUpdatePhoto || (() => {})}
             onDeletePhoto={onDeletePhoto || (() => {})}
             onSelectPhoto={handlePhotoPicked}
-            initialPresetFilter={photoPickerTarget === 'article' ? 'topic_landscape' : 'profile_square'}
+            initialPresetFilter={photoPickerTarget === 'article' ? 'all' : 'profile_square'}
             modalTitle={
               photoPickerTarget === 'article'
-                ? 'اختيار صورة موضوعية مصححة للمقال (1200 × 675)'
+                ? 'اختيار صورة موضوعية أو إنفوجرافيك للمقال (أفقي أو رأسي بدون قص)'
                 : `اختيار صورة شخصية لكاتب المقال: ${editAuthorName || 'الكاتب'} (400 × 400)`
             }
           />

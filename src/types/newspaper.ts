@@ -147,11 +147,14 @@ export interface EditorialUser {
 export type PhotoPresetType =
   | 'topic_landscape'
   | 'infographic_vertical'
+  | 'infographic_horizontal'
   | 'original_no_crop'
   | 'story_vertical'
   | 'profile_square'
   | 'banner_wide'
   | 'standard_photo';
+
+export type PhotoCategoryGroup = 'all' | 'topic' | 'profile' | 'infographic';
 
 export type PhotoFitMode = 'no_crop_scale' | 'contain_letterbox' | 'crop_cover';
 
@@ -164,6 +167,8 @@ export interface PhotoPresetConfig {
   usageDescription: string;
   badge: string;
   isVertical?: boolean;
+  orientation?: 'vertical' | 'horizontal' | 'square';
+  group: 'topic' | 'profile' | 'infographic';
   defaultFitMode?: PhotoFitMode;
 }
 
@@ -182,5 +187,7 @@ export interface PhotoLibraryItem {
   originalWidth?: number;
   originalHeight?: number;
   isInfographic?: boolean;
+  orientation?: 'vertical' | 'horizontal' | 'square';
+  scalePercentage?: number;
 }
 
