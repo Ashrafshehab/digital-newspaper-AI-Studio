@@ -1514,14 +1514,15 @@ export const PhotoLibraryModal: React.FC<PhotoLibraryModalProps> = ({
                 disabled={!selectedPhoto}
                 onClick={() => {
                   if (selectedPhoto) {
-                    const isInfographic =
+                    const isInfographic = Boolean(
                       selectedPhoto.isInfographic === true ||
                       selectedPhoto.preset === 'infographic_vertical' ||
                       selectedPhoto.preset === 'infographic_horizontal' ||
                       selectedPhoto.preset === 'original_no_crop' ||
                       selectedPhoto.preset === 'story_vertical' ||
                       selectedPhoto.fitMode === 'no_crop_scale' ||
-                      (selectedPhoto.height && selectedPhoto.width && selectedPhoto.height > selectedPhoto.width * 1.15);
+                      (selectedPhoto.height && selectedPhoto.width && selectedPhoto.height > selectedPhoto.width * 1.15)
+                    );
 
                     onSelectPhoto({
                       url: selectedPhoto.url,

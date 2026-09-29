@@ -35,7 +35,11 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
             <img
               src={leadArticle.image}
               alt={leadArticle.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103"
+              className={`w-full h-full transition-transform duration-500 group-hover:scale-103 ${
+                leadArticle.mediaType === 'infographic' || leadArticle.imageDisplayMode === 'infographic_vertical'
+                  ? 'object-contain bg-stone-950 p-2'
+                  : 'object-cover'
+              }`}
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-4 sm:p-6 text-white">
@@ -148,7 +152,11 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
                 <img
                   src={article.image}
                   alt={article.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-103"
+                  className={`w-full h-full transition-transform duration-300 group-hover:scale-103 ${
+                    article.mediaType === 'infographic' || article.imageDisplayMode === 'infographic_vertical'
+                      ? 'object-contain bg-stone-950 p-1.5'
+                      : 'object-cover'
+                  }`}
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-2 right-2 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] px-2 py-0.5 rounded font-medium">

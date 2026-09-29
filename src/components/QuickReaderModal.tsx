@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Clock,
@@ -51,6 +51,9 @@ import {
   VerificationSource
 } from '../types/newspaper';
 import { PhotoLibraryModal, PhotoSelectionResult } from './PhotoLibraryModal';
+import { RichTextToolbar } from './RichTextToolbar';
+import { RichTextEditor } from './RichTextEditor';
+import { FormattedArticleContent, stripHtmlTags, articleContentToHtml, htmlToArticleParagraphs } from '../utils/formattedContent';
 
 interface QuickReaderModalProps {
   article: Article | null;
@@ -112,6 +115,7 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editExcerpt, setEditExcerpt] = useState('');
   const [editContentRaw, setEditContentRaw] = useState('');
+  const editContentRef = useRef<HTMLTextAreaElement | null>(null);
   const [editPullQuote, setEditPullQuote] = useState('');
   const [editImage, setEditImage] = useState('');
   const [editImageCaption, setEditImageCaption] = useState('');
@@ -151,7 +155,7 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       setEditCategory(article.category || '');
       setEditCategoryId(article.categoryId || '');
       setEditExcerpt(article.excerpt || '');
-      setEditContentRaw(article.content ? article.content.join('\n\n') : '');
+      setEditContentRaw(article.content ? articleContentToHtml(article.content) : '');
       setEditPullQuote(article.pullQuote || '');
       setEditImage(article.image || '');
       setEditImageCaption(article.imageCaption || '');
@@ -229,22 +233,229 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, onNextArticle, onPrevArticle, isEditing, isPhotoPickerOpen]);
 
-  // Audio simulator timer
+  // Smart Arabic Voice Reader (SpeechSynthesis)
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
+  const [availableArabicVoices, setAvailableArabicVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [speechStatusText, setSpeechStatusText] = useState<string>('');
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speechIndexRef = useRef<number>(0);
+  const speechChunksRef = useRef<string[]>([]);
+  const isSpeechPausedRef = useRef<boolean>(false);
+
+  // Load available Arabic voices
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isPlayingAudio) {
-      timer = setInterval(() => {
-        setAudioProgress((prev) => {
-          if (prev >= 100) {
-            setIsPlayingAudio(false);
-            return 0;
-          }
-          return prev + 1 * audioSpeed;
-        });
-      }, 500);
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    const updateVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const arVoices = voices.filter(
+        (v) => v.lang.toLowerCase().startsWith('ar') || v.lang.toLowerCase().includes('arabic')
+      );
+      setAvailableArabicVoices(arVoices);
+      if (arVoices.length > 0 && !selectedVoiceName) {
+        // Prefer natural / google / premium voices if present
+        const preferred = arVoices.find(
+          (v) =>
+            v.name.includes('Google') ||
+            v.name.includes('Natural') ||
+            v.name.includes('Salma') ||
+            v.name.includes('Tarik') ||
+            v.name.includes('Maged')
+        ) || arVoices[0];
+        setSelectedVoiceName(preferred.name);
+      }
+    };
+
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, [selectedVoiceName]);
+
+  // Stop audio whenever modal closes or article changes
+  const stopAudioSpeech = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
     }
-    return () => clearInterval(timer);
-  }, [isPlayingAudio, audioSpeed]);
+    setIsPlayingAudio(false);
+    isSpeechPausedRef.current = false;
+    speechIndexRef.current = 0;
+    setAudioProgress(0);
+    setSpeechStatusText('');
+  }, []);
+
+  // Stop reading when article changes or component unmounts
+  useEffect(() => {
+    stopAudioSpeech();
+  }, [article?.id, stopAudioSpeech]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Split article into natural sentences / segments for reliable speech synthesis
+  const prepareArticleSpeechChunks = useCallback((): string[] => {
+    if (!article) return [];
+    const chunks: string[] = [];
+
+    // Title & subtitle
+    if (article.title) chunks.push(article.title);
+    if (article.subtitle) chunks.push(article.subtitle);
+
+    // Metadata intro
+    chunks.push(`تقرير من إعداد الصحفي ${article.author?.name || 'محرر المجلة'} في قسم ${article.category}.`);
+
+    // Excerpt
+    if (article.excerpt) chunks.push(article.excerpt);
+
+    // Pull quote
+    if (article.pullQuote) chunks.push(`اقتباس: ${article.pullQuote}`);
+
+    // Main paragraphs (broken by periods / newlines, stripped of HTML tags for speech)
+    if (article.content && article.content.length > 0) {
+      article.content.forEach((para) => {
+        const cleanPara = stripHtmlTags(para);
+        // split by punctuation to avoid long sentence browser bugs
+        const sentences = cleanPara.split(/([.،!؟\n]+)/).filter((s) => s.trim().length > 0);
+        let temp = '';
+        for (const s of sentences) {
+          if (temp.length + s.length < 180) {
+            temp += ' ' + s;
+          } else {
+            if (temp.trim()) chunks.push(temp.trim());
+            temp = s;
+          }
+        }
+        if (temp.trim()) chunks.push(temp.trim());
+      });
+    }
+
+    return chunks.filter((c) => c.length > 2);
+  }, [article]);
+
+  // Speak a specific chunk index sequentially
+  const speakNextChunk = useCallback(
+    (chunkIndex: number, chunks: string[], speed: number, voiceName: string) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        setIsPlayingAudio(false);
+        setSpeechStatusText('متصفحك لا يدعم خاصية تحويل النص إلى كلام (Web Speech API)');
+        return;
+      }
+
+      if (chunkIndex >= chunks.length) {
+        setIsPlayingAudio(false);
+        speechIndexRef.current = 0;
+        setAudioProgress(100);
+        setSpeechStatusText('اكتملت قراءة المقال بالكامل بنجاح ✓');
+        return;
+      }
+
+      const textToSpeak = chunks[chunkIndex];
+      const utter = new SpeechSynthesisUtterance(textToSpeak);
+      utter.lang = 'ar-SA';
+      utter.rate = speed;
+      utter.pitch = 1.0;
+
+      // Assign voice
+      const voices = window.speechSynthesis.getVoices();
+      const chosenVoice =
+        voices.find((v) => v.name === voiceName) ||
+        voices.find((v) => v.lang.toLowerCase().startsWith('ar')) ||
+        null;
+      if (chosenVoice) {
+        utter.voice = chosenVoice;
+      }
+
+      utter.onstart = () => {
+        setIsPlayingAudio(true);
+        const progress = Math.round(((chunkIndex + 1) / chunks.length) * 100);
+        setAudioProgress(progress);
+        setSpeechStatusText(`جاري القراءة بصوت عربي نقي... (${chunkIndex + 1} من ${chunks.length})`);
+      };
+
+      utter.onend = () => {
+        speechIndexRef.current = chunkIndex + 1;
+        speakNextChunk(chunkIndex + 1, chunks, speed, voiceName);
+      };
+
+      utter.onerror = (e) => {
+        console.warn('SpeechSynthesis error:', e);
+        // If error wasn't an intentional cancel, continue to next chunk
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+          speechIndexRef.current = chunkIndex + 1;
+          speakNextChunk(chunkIndex + 1, chunks, speed, voiceName);
+        }
+      };
+
+      speechUtteranceRef.current = utter;
+      window.speechSynthesis.speak(utter);
+    },
+    []
+  );
+
+  // Play / Pause toggle handler
+  const handleTogglePlayAudio = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      alert('عذراً، متصفحك لا يدعم محرك النطق الصوتي.');
+      return;
+    }
+
+    if (isPlayingAudio) {
+      // Pause
+      window.speechSynthesis.pause();
+      setIsPlayingAudio(false);
+      isSpeechPausedRef.current = true;
+      setSpeechStatusText('تم إيقاف القراءة مؤقتاً.');
+    } else {
+      if (isSpeechPausedRef.current && window.speechSynthesis.paused) {
+        // Resume
+        window.speechSynthesis.resume();
+        setIsPlayingAudio(true);
+        isSpeechPausedRef.current = false;
+        setSpeechStatusText('تم استئناف القراءة الصوتية...');
+      } else {
+        // Start fresh or restart
+        window.speechSynthesis.cancel();
+        const chunks = prepareArticleSpeechChunks();
+        speechChunksRef.current = chunks;
+        speechIndexRef.current = 0;
+        setAudioProgress(0);
+        setIsPlayingAudio(true);
+        isSpeechPausedRef.current = false;
+        speakNextChunk(0, chunks, audioSpeed, selectedVoiceName);
+      }
+    }
+  };
+
+  // Speed change handler: restarts speaking current chunk with new speed
+  const handleChangeSpeed = (newSpeed: number) => {
+    setAudioSpeed(newSpeed);
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      const chunks = speechChunksRef.current.length > 0 ? speechChunksRef.current : prepareArticleSpeechChunks();
+      const currentIdx = speechIndexRef.current;
+      speakNextChunk(currentIdx, chunks, newSpeed, selectedVoiceName);
+    }
+  };
+
+  // Voice change handler
+  const handleChangeVoice = (newVoiceName: string) => {
+    setSelectedVoiceName(newVoiceName);
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      const chunks = speechChunksRef.current.length > 0 ? speechChunksRef.current : prepareArticleSpeechChunks();
+      const currentIdx = speechIndexRef.current;
+      speakNextChunk(currentIdx, chunks, audioSpeed, newVoiceName);
+    }
+  };
 
   if (!article) return null;
 
@@ -292,10 +503,7 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       return;
     }
 
-    const paragraphs = editContentRaw
-      .split('\n\n')
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
+    const paragraphs = htmlToArticleParagraphs(editContentRaw);
 
     const nowFormatted = new Date().toLocaleDateString('ar-EG', {
       weekday: 'long',
@@ -797,16 +1005,20 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
 
               {/* Body Prose Content */}
               <div>
-                <label className="block text-xs font-bold text-stone-800 dark:text-stone-200 mb-1">
-                  متن المقال والفقرات الكاملة *
-                </label>
-                <textarea
-                  required
-                  rows={8}
-                  placeholder="افصل بين الفقرات بسطر فارغ..."
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-stone-800 dark:text-stone-200">
+                    متن المقال والفقرات الكاملة *
+                  </label>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                    محرر مرئي حي: تظهر الكلمات عريضة وملونة فوراً مع تباعد الأسطر
+                  </span>
+                </div>
+
+                <RichTextEditor
                   value={editContentRaw}
-                  onChange={(e) => setEditContentRaw(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 font-body leading-relaxed"
+                  onChange={setEditContentRaw}
+                  placeholder="متن المقال الكامل..."
+                  minHeight="220px"
                 />
               </div>
 
@@ -1251,53 +1463,102 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                 </div>
               )}
 
-              {/* Interactive Audio Player (TTS Narration Simulator) */}
-              <div className="max-w-3xl mx-auto bg-stone-200/50 dark:bg-stone-900/80 rounded-lg p-3 sm:p-4 border border-stone-200 dark:border-stone-800 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-stone-800 dark:text-stone-200 font-semibold">
-                    <Volume2 className="w-4 h-4 text-amber-600" />
-                    <span>القارئ الصوتي الذكي (استمع للمقال بصوت واضح)</span>
+              {/* Interactive Audio Player (Real Arabic TTS Narration) */}
+              <div className="max-w-3xl mx-auto bg-stone-100/90 dark:bg-stone-900/90 rounded-xl p-3 sm:p-4 border border-amber-200 dark:border-stone-800 shadow-xs flex flex-col gap-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-stone-900 dark:text-stone-100 font-bold">
+                    <span className="p-1 rounded-full bg-amber-600/10 text-amber-600 dark:text-amber-400">
+                      <Volume2 className="w-4 h-4" />
+                    </span>
+                    <span>القارئ الصوتي الذكي (نطق عربي فصيح وطبيعي)</span>
                   </div>
-                  <span className="font-mono text-stone-500 text-[11px]">
-                    {article.audioDuration || '04:15 دقيقة'}
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {/* Arabic Voice Selection if available */}
+                    {availableArabicVoices.length > 1 && (
+                      <select
+                        value={selectedVoiceName}
+                        onChange={(e) => handleChangeVoice(e.target.value)}
+                        className="px-2 py-1 text-[11px] rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 cursor-pointer"
+                        title="اختيار الصوت العربي"
+                      >
+                        {availableArabicVoices.map((voice) => (
+                          <option key={voice.name} value={voice.name}>
+                            {voice.name.replace(/Google|Microsoft/g, '').trim()} ({voice.lang})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <span className="font-mono text-stone-500 text-[11px]">
+                      {article.audioDuration || 'قراءة كاملة'}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  {/* Play / Pause Button */}
                   <button
-                    onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                    className="w-8 h-8 rounded-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-                    title={isPlayingAudio ? 'إيقاف مؤقت' : 'تشغيل الاستماع'}
+                    onClick={handleTogglePlayAudio}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm ${
+                      isPlayingAudio
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400/50'
+                        : 'bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 hover:scale-105'
+                    }`}
+                    title={isPlayingAudio ? 'إيقاف مؤقت' : 'تشغيل الاستماع باللغة العربية'}
                   >
                     {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 mr-0.5" />}
                   </button>
 
+                  {/* Stop Button */}
+                  {(isPlayingAudio || audioProgress > 0) && (
+                    <button
+                      onClick={stopAudioSpeech}
+                      className="p-1.5 rounded-full text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors cursor-pointer shrink-0"
+                      title="إيقاف وإعادة للبداية"
+                    >
+                      <VolumeX className="w-4 h-4" />
+                    </button>
+                  )}
+
                   {/* Progress bar */}
-                  <div className="flex-1 bg-stone-300 dark:bg-stone-700 h-2 rounded-full overflow-hidden cursor-pointer">
+                  <div className="flex-1 bg-stone-200 dark:bg-stone-800 h-2.5 rounded-full overflow-hidden relative shadow-inner">
                     <div
-                      className="bg-amber-600 h-full transition-all duration-300"
+                      className="bg-amber-600 h-full transition-all duration-300 rounded-full"
                       style={{ width: `${audioProgress}%` }}
                     />
                   </div>
+                  <span className="font-mono text-[10px] text-stone-500 w-8 text-center shrink-0">
+                    {audioProgress}%
+                  </span>
 
                   {/* Speed toggle */}
                   <button
                     onClick={() => {
-                      const speeds = [1, 1.25, 1.5];
+                      const speeds = [0.9, 1, 1.25, 1.5];
                       const nextIdx = (speeds.indexOf(audioSpeed) + 1) % speeds.length;
-                      setAudioSpeed(speeds[nextIdx]);
+                      handleChangeSpeed(speeds[nextIdx]);
                     }}
-                    className="px-2 py-0.5 text-[11px] font-mono font-semibold bg-stone-300/60 dark:bg-stone-800 rounded text-stone-700 dark:text-stone-300 cursor-pointer"
-                    title="سرعة الإلقاء"
+                    className="px-2 py-1 text-[11px] font-mono font-bold bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded text-stone-700 dark:text-stone-300 hover:bg-stone-50 transition-colors cursor-pointer shrink-0"
+                    title="التحكم في سرعة الإلقاء"
                   >
                     {audioSpeed}x
                   </button>
                 </div>
-                {isPlayingAudio && (
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400 animate-pulse text-right">
-                    جاري الإلقاء الصوتي الآلي للمقال... يمكنك متابعة القراءة بالأسفل
+
+                {/* Status caption & animation */}
+                {isPlayingAudio ? (
+                  <div className="flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-900/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
+                      <span>{speechStatusText || 'جاري نطق المقال بصوت عربي فصيح...'}</span>
+                    </div>
+                    <span className="text-[10px] opacity-80">يمكنك المتابعة مع النص بالأسفل</span>
+                  </div>
+                ) : speechStatusText ? (
+                  <p className="text-[11px] text-stone-600 dark:text-stone-400 text-right">
+                    {speechStatusText}
                   </p>
-                )}
+                ) : null}
               </div>
 
               {/* Article Featured Photo / Infographic / Multimedia View */}
@@ -1373,21 +1634,13 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
 
               {/* Body Prose Columns */}
               <div className="max-w-3xl mx-auto space-y-6 pt-4 border-t border-stone-200 dark:border-stone-800">
-                {article.content.map((paragraph, index) => {
-                  const isFirst = index === 0;
-                  return (
-                    <p
-                      key={index}
-                      className={`text-stone-800 dark:text-stone-200 font-body ${fontSizes[fontSizeLevel]} ${
-                        isFirst
-                          ? 'first-letter:text-4xl first-letter:font-editorial first-letter:font-bold first-letter:float-right first-letter:ml-3 first-letter:text-amber-800 dark:first-letter:text-amber-400'
-                          : ''
-                      }`}
-                    >
-                      {paragraph}
-                    </p>
-                  );
-                })}
+                {article.content.map((paragraph, index) => (
+                  <FormattedArticleContent
+                    key={index}
+                    paragraph={paragraph}
+                    className={`text-stone-800 dark:text-stone-200 font-body ${fontSizes[fontSizeLevel]}`}
+                  />
+                ))}
 
                 {/* Elegant Editorial Pull Quote */}
                 {article.pullQuote && (

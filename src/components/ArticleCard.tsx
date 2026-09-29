@@ -142,7 +142,11 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <img
           src={article.image}
           alt={article.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-103"
+          className={`w-full h-full transition-transform duration-300 group-hover:scale-103 ${
+            article.mediaType === 'infographic' || article.imageDisplayMode === 'infographic_vertical'
+              ? 'object-contain bg-stone-950 p-1'
+              : 'object-cover'
+          }`}
           referrerPolicy="no-referrer"
         />
         <div className="absolute top-2.5 right-2.5 bg-stone-950/75 backdrop-blur-xs text-white text-[11px] font-medium px-2 py-0.5 rounded">

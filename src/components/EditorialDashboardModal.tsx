@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   PlusCircle,
@@ -57,6 +57,9 @@ import {
 import { PhotoLibraryModal, PhotoSelectionResult } from './PhotoLibraryModal';
 import { PHOTO_PRESETS, optimizeAndResizeImage } from '../utils/imageOptimizer';
 import { EditorialAnalyticsTab } from './EditorialAnalyticsTab';
+import { RichTextToolbar } from './RichTextToolbar';
+import { RichTextEditor } from './RichTextEditor';
+import { FormattedArticleContent, articleContentToHtml, htmlToArticleParagraphs } from '../utils/formattedContent';
 
 // Generated images for new articles
 import heroImg from '../assets/images/hero_investigation_1790383838081.jpg';
@@ -140,6 +143,10 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   const [composeGuestAvatar, setComposeGuestAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80');
   const [composeTargetStatus, setComposeTargetStatus] = useState<'pending_review' | 'pending_section_head'>('pending_review');
 
+  const [composeMediaType, setComposeMediaType] = useState<Article['mediaType']>('article');
+  const [composeImageDisplayMode, setComposeImageDisplayMode] = useState<Article['imageDisplayMode']>('cover');
+  const composeContentRef = useRef<HTMLTextAreaElement | null>(null);
+
   // Inspecting Article Inline Edit Mode
   const [isEditingInspected, setIsEditingInspected] = useState(false);
   const [inspectedTitle, setInspectedTitle] = useState('');
@@ -154,7 +161,10 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   const [inspectedPullQuote, setInspectedPullQuote] = useState('');
   const [inspectedImage, setInspectedImage] = useState('');
   const [inspectedImageCaption, setInspectedImageCaption] = useState('');
+  const [inspectedMediaType, setInspectedMediaType] = useState<Article['mediaType']>('article');
+  const [inspectedImageDisplayMode, setInspectedImageDisplayMode] = useState<Article['imageDisplayMode']>('cover');
   const [inspectorSuccessMsg, setInspectorSuccessMsg] = useState('');
+  const inspectedContentRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Photo Selector Modal Sub-states
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
@@ -402,10 +412,12 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     setInspectedAuthorRole(article.author?.role || '');
     setInspectedAuthorAvatar(article.author?.avatar || '');
     setInspectedExcerpt(article.excerpt || '');
-    setInspectedContent(article.content ? article.content.join('\n\n') : '');
+    setInspectedContent(article.content ? articleContentToHtml(article.content) : '');
     setInspectedPullQuote(article.pullQuote || '');
     setInspectedImage(article.image || '');
     setInspectedImageCaption(article.imageCaption || '');
+    setInspectedMediaType(article.mediaType || 'article');
+    setInspectedImageDisplayMode(article.imageDisplayMode || 'cover');
   };
 
   // Save changes made in Inspector (including Author, Title, Excerpt, Content)
@@ -413,10 +425,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     e.preventDefault();
     if (!inspectingArticle) return;
 
-    const paragraphs = inspectedContent
-      .split('\n\n')
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
+    const paragraphs = htmlToArticleParagraphs(inspectedContent);
 
     const updatedFields: Partial<Article> = {
       title: inspectedTitle.trim(),
@@ -433,7 +442,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       content: paragraphs.length > 0 ? paragraphs : [inspectedContent.trim()],
       pullQuote: inspectedPullQuote.trim() || undefined,
       image: inspectedImage,
-      imageCaption: inspectedImageCaption.trim() || undefined
+      imageCaption: inspectedImageCaption.trim() || undefined,
+      mediaType: inspectedMediaType,
+      imageDisplayMode: inspectedImageDisplayMode
     };
 
     if (onUpdateArticle) {
@@ -460,10 +471,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       return;
     }
 
-    const paragraphs = contentRaw
-      .split('\n\n')
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
+    const paragraphs = htmlToArticleParagraphs(contentRaw);
 
     const tags = tagsRaw
       .split(',')
@@ -510,6 +518,8 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       readTimeMinutes: Math.max(2, Math.round(contentRaw.length / 500)),
       image: selectedImage,
       imageCaption: imageCaption.trim() || 'صورة صحفية معتمدة بصحيفة MUDigital.',
+      mediaType: composeMediaType,
+      imageDisplayMode: composeImageDisplayMode,
       views: 0,
       likes: 0,
       tags: tags.length > 0 ? tags : ['تحقيق', 'جامعة'],
@@ -700,10 +710,28 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
   // Handle Photo Picker Selection callback
   const handlePhotoPicked = (result: PhotoSelectionResult) => {
+    const isInfographic =
+      result.isInfographic === true ||
+      result.preset === 'infographic_vertical' ||
+      result.preset === 'infographic_horizontal' ||
+      result.preset === 'original_no_crop' ||
+      result.preset === 'story_vertical' ||
+      result.fitMode === 'no_crop_scale' ||
+      (result.height && result.width && result.height > result.width * 1.15);
+
     if (photoPickerTarget === 'article') {
       setSelectedImage(result.url);
       if (result.caption) {
         setImageCaption(result.caption);
+      }
+      if (isInfographic) {
+        setComposeMediaType('infographic');
+        setComposeImageDisplayMode('infographic_vertical');
+      } else if (result.preset === 'standard_photo' || result.preset === 'topic_landscape') {
+        if (composeMediaType === 'infographic') {
+          setComposeMediaType('article');
+          setComposeImageDisplayMode('cover');
+        }
       }
     } else if (photoPickerTarget === 'profile') {
       setMyAvatar(result.url);
@@ -719,6 +747,15 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       setInspectedImage(result.url);
       if (result.caption) {
         setInspectedImageCaption(result.caption);
+      }
+      if (isInfographic) {
+        setInspectedMediaType('infographic');
+        setInspectedImageDisplayMode('infographic_vertical');
+      } else if (result.preset === 'standard_photo' || result.preset === 'topic_landscape') {
+        if (inspectedMediaType === 'infographic') {
+          setInspectedMediaType('article');
+          setInspectedImageDisplayMode('cover');
+        }
       }
     }
     setIsPhotoPickerOpen(false);
@@ -1280,15 +1317,20 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                   {/* Body Prose Content */}
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                      متن المقال والفقرات الكاملة *
-                    </label>
-                    <textarea
-                      required
-                      rows={8}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                        متن المقال والفقرات الكاملة *
+                      </label>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                        محرر مرئي حي: تظهر التعديلات فوراً مع فواصل الأسطر
+                      </span>
+                    </div>
+
+                    <RichTextEditor
                       value={inspectedContent}
-                      onChange={(e) => setInspectedContent(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 font-body leading-relaxed"
+                      onChange={setInspectedContent}
+                      placeholder="متن المقال الكامل..."
+                      minHeight="220px"
                     />
                   </div>
 
@@ -1390,14 +1432,35 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
                 </div>
 
                 {inspectingArticle.image && (
-                  <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-800">
-                    <img
-                      src={inspectingArticle.image}
-                      alt={inspectingArticle.title}
-                      className="w-full max-h-80 object-cover"
-                    />
+                  <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-800 bg-stone-950 flex flex-col">
+                    {inspectingArticle.mediaType === 'infographic' || inspectingArticle.imageDisplayMode === 'infographic_vertical' ? (
+                      <div className="p-2 sm:p-4 flex flex-col items-center">
+                        <div className="w-full flex items-center justify-between pb-2 mb-2 border-b border-stone-800 text-xs">
+                          <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                            <BarChart2 className="w-4 h-4 text-emerald-500" />
+                            <span>إنفوجرافيك كامل (بدون قص)</span>
+                          </span>
+                          <span className="text-[10px] text-stone-400">
+                            يتم عرضه بكامل تفاصيله الطبيعية
+                          </span>
+                        </div>
+                        <img
+                          src={inspectingArticle.image}
+                          alt={inspectingArticle.title}
+                          className="max-w-full h-auto max-h-[600px] object-contain mx-auto rounded"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    ) : (
+                      <img
+                        src={inspectingArticle.image}
+                        alt={inspectingArticle.title}
+                        className="w-full max-h-80 object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
                     {inspectingArticle.imageCaption && (
-                      <p className="p-2.5 text-xs text-stone-500 bg-stone-50 dark:bg-stone-850">
+                      <p className="p-2.5 text-xs text-stone-500 bg-stone-50 dark:bg-stone-850 border-t border-stone-200 dark:border-stone-800">
                         {inspectingArticle.imageCaption}
                       </p>
                     )}
@@ -1412,7 +1475,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                 <div className="space-y-4 text-sm sm:text-base leading-relaxed text-stone-800 dark:text-stone-200 font-body">
                   {inspectingArticle.content.map((p, idx) => (
-                    <p key={idx}>{p}</p>
+                    <FormattedArticleContent key={idx} paragraph={p} />
                   ))}
                 </div>
 
@@ -1815,16 +1878,20 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                  متن التحقيق الصحفي الكامل *
-                </label>
-                <textarea
-                  required
-                  rows={5}
-                  placeholder="افصل بين الفقرات بسطر فارغ..."
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                    متن التحقيق الصحفي الكامل *
+                  </label>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                    محرر مرئي حي: تظهر الكلمة عريضة أو ملونة فوراً مع تباعد الفقرات
+                  </span>
+                </div>
+
+                <RichTextEditor
                   value={contentRaw}
-                  onChange={(e) => setContentRaw(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 leading-relaxed"
+                  onChange={setContentRaw}
+                  placeholder="ابدأ بكتابة نص التحقيق الصحفي الكامل هنا... ظلل أي كلمة أو عنوان جانبي لتطبيق Bold أو اللون أو العنوان فوراً بشكل مرئي بدون أكواد وبفواصل واضحة."
+                  minHeight="220px"
                 />
               </div>
 
@@ -1872,10 +1939,14 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                 {/* Selected Image Display */}
                 <div className="flex flex-col sm:flex-row items-center gap-4 bg-white dark:bg-stone-900 p-3 rounded-xl border border-stone-200 dark:border-stone-800">
-                  <div className="relative w-full sm:w-48 aspect-video rounded-lg overflow-hidden bg-stone-950 shrink-0">
-                    <img src={selectedImage} alt="Selected" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
-                      1200 × 675 px
+                  <div className={`relative w-full sm:w-48 ${composeMediaType === 'infographic' ? 'h-48' : 'aspect-video'} rounded-lg overflow-hidden bg-stone-950 shrink-0 flex items-center justify-center p-1`}>
+                    <img
+                      src={selectedImage}
+                      alt="Selected"
+                      className={`w-full h-full ${composeMediaType === 'infographic' ? 'object-contain' : 'object-cover'}`}
+                    />
+                    <span className="absolute bottom-1 right-1 bg-black/75 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
+                      {composeMediaType === 'infographic' ? 'إنفوجرافيك كامل (بدون قص)' : '1200 × 675 px'}
                     </span>
                   </div>
 
