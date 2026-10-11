@@ -39,7 +39,11 @@ import {
   BarChart3,
   BarChart2,
   Smartphone,
-  Monitor
+  Monitor,
+  Globe,
+  Share2,
+  Film,
+  Play
 } from 'lucide-react';
 import {
   Article,
@@ -52,7 +56,8 @@ import {
   PhotoPresetType,
   PhotoCategoryGroup,
   FactCheckInfo,
-  FactCheckVerdict
+  FactCheckVerdict,
+  SocialMediaAccounts
 } from '../types/newspaper';
 import { PhotoLibraryModal, PhotoSelectionResult } from './PhotoLibraryModal';
 import { PHOTO_PRESETS, optimizeAndResizeImage } from '../utils/imageOptimizer';
@@ -60,6 +65,8 @@ import { EditorialAnalyticsTab } from './EditorialAnalyticsTab';
 import { RichTextToolbar } from './RichTextToolbar';
 import { RichTextEditor } from './RichTextEditor';
 import { FormattedArticleContent, articleContentToHtml, htmlToArticleParagraphs } from '../utils/formattedContent';
+import { WhatsAppIcon, XTwitterIcon, FacebookIcon, TelegramIcon } from './ArticleShareButtons';
+import { VideoPlayer } from './VideoPlayer';
 
 // Generated images for new articles
 import heroImg from '../assets/images/hero_investigation_1790383838081.jpg';
@@ -92,6 +99,10 @@ interface EditorialDashboardModalProps {
   onAddPhoto: (photo: PhotoLibraryItem) => void;
   onUpdatePhoto: (id: string, updated: Partial<PhotoLibraryItem>) => void;
   onDeletePhoto: (id: string) => void;
+  // Social Media Accounts Props
+  socialAccounts?: SocialMediaAccounts;
+  onUpdateSocialAccounts?: (accounts: SocialMediaAccounts) => void;
+  initialTab?: 'queue' | 'compose' | 'categories' | 'users' | 'profile' | 'photos' | 'stats' | 'social_accounts';
 }
 
 export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = ({
@@ -113,12 +124,56 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   photoLibrary,
   onAddPhoto,
   onUpdatePhoto,
-  onDeletePhoto
+  onDeletePhoto,
+  socialAccounts,
+  onUpdateSocialAccounts,
+  initialTab = 'queue'
 }) => {
-  const [activeTab, setActiveTab] = useState<'queue' | 'compose' | 'categories' | 'users' | 'profile' | 'photos' | 'stats'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'compose' | 'categories' | 'users' | 'profile' | 'photos' | 'stats' | 'social_accounts'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab && isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
+
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedArticleIdForAction, setSelectedArticleIdForAction] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState('');
+
+  // Social Media Accounts & Auto-Publish Tab State
+  const [socialFacebook, setSocialFacebook] = useState(socialAccounts?.facebook || '');
+  const [socialTwitter, setSocialTwitter] = useState(socialAccounts?.twitter || '');
+  const [socialWhatsapp, setSocialWhatsapp] = useState(socialAccounts?.whatsapp || '');
+  const [socialTelegram, setSocialTelegram] = useState(socialAccounts?.telegram || '');
+  const [socialInstagram, setSocialInstagram] = useState(socialAccounts?.instagram || '');
+  const [socialYoutube, setSocialYoutube] = useState(socialAccounts?.youtube || '');
+  const [autoPublishEnabled, setAutoPublishEnabled] = useState(socialAccounts?.autoPublishEnabled ?? true);
+  const [autoFacebook, setAutoFacebook] = useState(socialAccounts?.autoPublishPlatforms?.facebook ?? true);
+  const [autoTwitter, setAutoTwitter] = useState(socialAccounts?.autoPublishPlatforms?.twitter ?? true);
+  const [autoTelegram, setAutoTelegram] = useState(socialAccounts?.autoPublishPlatforms?.telegram ?? true);
+  const [autoWhatsapp, setAutoWhatsapp] = useState(socialAccounts?.autoPublishPlatforms?.whatsapp ?? true);
+  const [autoWebhookUrl, setAutoWebhookUrl] = useState(socialAccounts?.autoPublishWebhookUrl || '');
+  const [socialSavedSuccess, setSocialSavedSuccess] = useState(false);
+  const [testPublishing, setTestPublishing] = useState(false);
+  const [testPublishSuccess, setTestPublishSuccess] = useState(false);
+
+  useEffect(() => {
+    if (socialAccounts) {
+      setSocialFacebook(socialAccounts.facebook || '');
+      setSocialTwitter(socialAccounts.twitter || '');
+      setSocialWhatsapp(socialAccounts.whatsapp || '');
+      setSocialTelegram(socialAccounts.telegram || '');
+      setSocialInstagram(socialAccounts.instagram || '');
+      setSocialYoutube(socialAccounts.youtube || '');
+      setAutoPublishEnabled(socialAccounts.autoPublishEnabled ?? true);
+      setAutoFacebook(socialAccounts.autoPublishPlatforms?.facebook ?? true);
+      setAutoTwitter(socialAccounts.autoPublishPlatforms?.twitter ?? true);
+      setAutoTelegram(socialAccounts.autoPublishPlatforms?.telegram ?? true);
+      setAutoWhatsapp(socialAccounts.autoPublishPlatforms?.whatsapp ?? true);
+      setAutoWebhookUrl(socialAccounts.autoPublishWebhookUrl || '');
+    }
+  }, [socialAccounts]);
 
   // Internal In-Dashboard Article Inspector (Fixes preview obscuring everything)
   const [inspectingArticle, setInspectingArticle] = useState<Article | null>(null);
@@ -145,6 +200,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
   const [composeMediaType, setComposeMediaType] = useState<Article['mediaType']>('article');
   const [composeImageDisplayMode, setComposeImageDisplayMode] = useState<Article['imageDisplayMode']>('cover');
+  const [composeVideoUrl, setComposeVideoUrl] = useState('');
+  const [composeVideoSourceType, setComposeVideoSourceType] = useState<'upload' | 'youtube' | 'direct_url'>('youtube');
+  const [composeVideoDuration, setComposeVideoDuration] = useState('');
   const composeContentRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Inspecting Article Inline Edit Mode
@@ -163,6 +221,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   const [inspectedImageCaption, setInspectedImageCaption] = useState('');
   const [inspectedMediaType, setInspectedMediaType] = useState<Article['mediaType']>('article');
   const [inspectedImageDisplayMode, setInspectedImageDisplayMode] = useState<Article['imageDisplayMode']>('cover');
+  const [inspectedVideoUrl, setInspectedVideoUrl] = useState('');
+  const [inspectedVideoSourceType, setInspectedVideoSourceType] = useState<'upload' | 'youtube' | 'direct_url'>('youtube');
+  const [inspectedVideoDuration, setInspectedVideoDuration] = useState('');
   const [inspectorSuccessMsg, setInspectorSuccessMsg] = useState('');
   const inspectedContentRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -418,6 +479,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     setInspectedImageCaption(article.imageCaption || '');
     setInspectedMediaType(article.mediaType || 'article');
     setInspectedImageDisplayMode(article.imageDisplayMode || 'cover');
+    setInspectedVideoUrl(article.videoUrl || '');
+    setInspectedVideoSourceType(article.videoSourceType || 'youtube');
+    setInspectedVideoDuration(article.videoDuration || '');
   };
 
   // Save changes made in Inspector (including Author, Title, Excerpt, Content)
@@ -444,7 +508,10 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       image: inspectedImage,
       imageCaption: inspectedImageCaption.trim() || undefined,
       mediaType: inspectedMediaType,
-      imageDisplayMode: inspectedImageDisplayMode
+      imageDisplayMode: inspectedImageDisplayMode,
+      videoUrl: inspectedMediaType === 'video' ? inspectedVideoUrl.trim() || undefined : undefined,
+      videoSourceType: inspectedMediaType === 'video' ? inspectedVideoSourceType : undefined,
+      videoDuration: inspectedMediaType === 'video' ? inspectedVideoDuration.trim() || undefined : undefined
     };
 
     if (onUpdateArticle) {
@@ -520,6 +587,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       imageCaption: imageCaption.trim() || 'صورة صحفية معتمدة بصحيفة MUDigital.',
       mediaType: composeMediaType,
       imageDisplayMode: composeImageDisplayMode,
+      videoUrl: composeMediaType === 'video' ? composeVideoUrl.trim() || undefined : undefined,
+      videoSourceType: composeMediaType === 'video' ? composeVideoSourceType : undefined,
+      videoDuration: composeMediaType === 'video' ? composeVideoDuration.trim() || undefined : undefined,
       views: 0,
       likes: 0,
       tags: tags.length > 0 ? tags : ['تحقيق', 'جامعة'],
@@ -550,6 +620,9 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     setContentRaw('');
     setPullQuote('');
     setComposeGuestName('');
+    setComposeVideoUrl('');
+    setComposeVideoDuration('');
+    setComposeVideoSourceType('youtube');
   };
 
   // Add User Handler
@@ -893,6 +966,43 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
               <span>كتابة مقال / مسودة جديدة</span>
             </button>
 
+            {canManageUsers && (
+              <button
+                onClick={() => {
+                  setActiveTab('users');
+                  setInspectingArticle(null);
+                }}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'users'
+                    ? 'border-amber-600 text-amber-700 dark:text-amber-400 bg-amber-500/10'
+                    : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+                }`}
+              >
+                <Users className="w-4 h-4 text-amber-600" />
+                <span>إدارة المحررين والصلاحيات ({editorialUsers.length})</span>
+                <span className="text-[10px] bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-1.5 py-0.2 rounded font-bold">
+                  مشرف النظام
+                </span>
+              </button>
+            )}
+
+            {canManageCategories && (
+              <button
+                onClick={() => {
+                  setActiveTab('categories');
+                  setInspectingArticle(null);
+                }}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'categories'
+                    ? 'border-amber-600 text-amber-700 dark:text-amber-400 bg-amber-500/10'
+                    : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5 text-amber-600" />
+                <span>إدارة الأبواب الصحفية</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setActiveTab('photos');
@@ -923,39 +1033,26 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
               <span>الإحصائيات والأداء</span>
             </button>
 
-            {canManageCategories && (
-              <button
-                onClick={() => {
-                  setActiveTab('categories');
-                  setInspectingArticle(null);
-                }}
-                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'categories'
-                    ? 'border-amber-600 text-amber-700 dark:text-amber-400'
-                    : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900'
-                }`}
-              >
-                <Settings className="w-3.5 h-3.5 text-amber-600" />
-                <span>إدارة الأبواب الصحفية</span>
-              </button>
-            )}
-
-            {canManageUsers && (
-              <button
-                onClick={() => {
-                  setActiveTab('users');
-                  setInspectingArticle(null);
-                }}
-                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                  activeTab === 'users'
-                    ? 'border-amber-600 text-amber-700 dark:text-amber-400'
-                    : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5 text-amber-600" />
-                <span>إدارة المحررين والصلاحيات</span>
-              </button>
-            )}
+            <button
+              onClick={() => {
+                setActiveTab('social_accounts');
+                setInspectingArticle(null);
+              }}
+              className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'social_accounts'
+                  ? 'border-amber-600 text-amber-700 dark:text-amber-400 bg-amber-500/10'
+                  : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>صفحات وقنوات MUDigital الرسمية</span>
+              <span className="text-[10px] bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                الروابط
+              </span>
+              {socialAccounts?.autoPublishEnabled && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="النشر الآلي مفعل" />
+              )}
+            </button>
 
             <button
               onClick={() => {
@@ -1376,6 +1473,182 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
                     </div>
                   </div>
 
+                  {/* Media Type Selector */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                      نوع ونمط المادة الصحفية:
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setInspectedMediaType('article')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          inspectedMediaType === 'article'
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                            : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                        }`}
+                      >
+                        مقال صحفي تقليدي
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInspectedMediaType('infographic')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          inspectedMediaType === 'infographic'
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                            : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                        }`}
+                      >
+                        إنفوجرافيك طولي/عريض
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInspectedMediaType('video')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                          inspectedMediaType === 'video'
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                            : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                        }`}
+                      >
+                        <Film className="w-3.5 h-3.5" />
+                        <span>تقرير مصور وفيديو</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInspectedMediaType('podcast')}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          inspectedMediaType === 'podcast'
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                            : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                        }`}
+                      >
+                        بودكاست صوتي
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dedicated Video Configuration Panel for Inspected Article */}
+                  {inspectedMediaType === 'video' && (
+                    <div className="p-4 rounded-xl border-2 border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-rose-200 dark:border-rose-900/50">
+                        <span className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                          <Film className="w-4 h-4" />
+                          <span>إعدادات التقرير المصور ورفع الفيديو (Video Journalism)</span>
+                        </span>
+                        <span className="text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded font-mono">
+                          MP4 / WebM / YouTube
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                            رابط الفيديو (YouTube أو رابط MP4 مباشر):
+                          </label>
+                          <input
+                            type="url"
+                            placeholder="https://www.youtube.com/watch?v=... أو https://.../video.mp4"
+                            value={inspectedVideoUrl}
+                            onChange={(e) => {
+                              setInspectedVideoUrl(e.target.value);
+                              if (e.target.value.includes('youtu')) {
+                                setInspectedVideoSourceType('youtube');
+                              } else {
+                                setInspectedVideoSourceType('direct_url');
+                              }
+                            }}
+                            className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                            dir="ltr"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                            مدة التقرير المصور (مثال: 04:15):
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="04:15"
+                            value={inspectedVideoDuration}
+                            onChange={(e) => setInspectedVideoDuration(e.target.value)}
+                            className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 font-mono"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Direct File Upload Option */}
+                      <div className="p-3 rounded-lg bg-white dark:bg-stone-900 border border-rose-200 dark:border-rose-900/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="text-xs text-stone-600 dark:text-stone-300 space-y-0.5 text-right w-full sm:w-auto">
+                          <span className="font-bold block text-stone-900 dark:text-stone-100">
+                            أو ارفع ملف فيديو محلي من جهازك مباشرة:
+                          </span>
+                          <span className="text-[11px] text-stone-500 block">
+                            يدعم ملفات MP4 و WebM (يتم تجهيزها للمشغل المدمج فوراً مع استخراج المدة الزمنية تلقائياً)
+                          </span>
+                        </div>
+
+                        <label className="cursor-pointer px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 shadow-xs">
+                          <Film className="w-3.5 h-3.5" />
+                          <span>اختيار ملف فيديو من الجهاز</span>
+                          <input
+                            type="file"
+                            accept="video/mp4,video/webm,video/ogg"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const blobUrl = URL.createObjectURL(file);
+                                setInspectedVideoUrl(blobUrl);
+                                setInspectedVideoSourceType('upload');
+                                const tempVideo = document.createElement('video');
+                                tempVideo.src = blobUrl;
+                                tempVideo.onloadedmetadata = () => {
+                                  const minutes = Math.floor(tempVideo.duration / 60);
+                                  const seconds = Math.floor(tempVideo.duration % 60);
+                                  setInspectedVideoDuration(
+                                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+                                  );
+                                };
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      {/* Live Video Preview Box */}
+                      {inspectedVideoUrl && (
+                        <div className="p-3 rounded-xl bg-stone-950 border border-rose-500/30 space-y-2">
+                          <div className="flex items-center justify-between text-xs pb-1.5 border-b border-stone-800">
+                            <span className="font-bold flex items-center gap-1.5 text-rose-400">
+                              <Film className="w-3.5 h-3.5" />
+                              <span>معاينة حية للتقرير المصور المعدل:</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInspectedVideoUrl('');
+                                setInspectedVideoDuration('');
+                              }}
+                              className="text-[11px] text-rose-400 hover:text-rose-300 cursor-pointer"
+                            >
+                              ✕ حذف ملف الفيديو
+                            </button>
+                          </div>
+                          <div className="max-w-md mx-auto rounded-lg overflow-hidden border border-stone-800 bg-black">
+                            <VideoPlayer
+                              src={inspectedVideoUrl}
+                              poster={inspectedImage}
+                              title={inspectedTitle || 'معاينة التقرير المصور'}
+                              duration={inspectedVideoDuration}
+                              sourceType={inspectedVideoSourceType}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Save button */}
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
                     <button
@@ -1433,7 +1706,17 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                 {inspectingArticle.image && (
                   <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-800 bg-stone-950 flex flex-col">
-                    {inspectingArticle.mediaType === 'infographic' || inspectingArticle.imageDisplayMode === 'infographic_vertical' ? (
+                    {inspectingArticle.mediaType === 'video' || inspectingArticle.videoUrl ? (
+                      <div className="p-2 sm:p-4 bg-black">
+                        <VideoPlayer
+                          src={inspectingArticle.videoUrl}
+                          poster={inspectingArticle.image}
+                          title={inspectingArticle.title}
+                          duration={inspectingArticle.videoDuration}
+                          sourceType={inspectingArticle.videoSourceType}
+                        />
+                      </div>
+                    ) : inspectingArticle.mediaType === 'infographic' || inspectingArticle.imageDisplayMode === 'infographic_vertical' ? (
                       <div className="p-2 sm:p-4 flex flex-col items-center">
                         <div className="w-full flex items-center justify-between pb-2 mb-2 border-b border-stone-800 text-xs">
                           <span className="font-bold text-emerald-400 flex items-center gap-1.5">
@@ -1908,12 +2191,194 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
                 />
               </div>
 
+              {/* Media Type Selector */}
+              <div className="p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-850/60 space-y-2">
+                <label className="block text-xs font-bold text-stone-900 dark:text-stone-100">
+                  نوع المادة الصحفية (Media Format):
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setComposeMediaType('article')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      composeMediaType === 'article'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    مقال صحفي تقليدي
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComposeMediaType('video')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      composeMediaType === 'video'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    تقرير مصور / فيديو
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComposeMediaType('infographic')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      composeMediaType === 'infographic'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    إنفوجرافيك كامل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComposeMediaType('podcast')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      composeMediaType === 'podcast'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    بودكاست صوتي
+                  </button>
+                </div>
+              </div>
+
+              {/* Dedicated Video Configuration Panel for Compose */}
+              {composeMediaType === 'video' && (
+                <div className="p-4 rounded-xl border-2 border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-rose-200 dark:border-rose-900/50">
+                    <span className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                      <Film className="w-4 h-4" />
+                      <span>إعدادات التقرير المصور ورفع الفيديو (Video Journalism)</span>
+                    </span>
+                    <span className="text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded font-mono">
+                      MP4 / WebM / YouTube
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                        رابط الفيديو (YouTube أو رابط MP4 مباشر):
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://www.youtube.com/watch?v=... أو https://.../video.mp4"
+                        value={composeVideoUrl}
+                        onChange={(e) => {
+                          setComposeVideoUrl(e.target.value);
+                          if (e.target.value.includes('youtu')) {
+                            setComposeVideoSourceType('youtube');
+                          } else {
+                            setComposeVideoSourceType('direct_url');
+                          }
+                        }}
+                        className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                        مدة التقرير المصور (مثال: 04:15):
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="04:15"
+                        value={composeVideoDuration}
+                        onChange={(e) => setComposeVideoDuration(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Direct File Upload Option */}
+                  <div className="p-3 rounded-lg bg-white dark:bg-stone-900 border border-rose-200 dark:border-rose-900/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-stone-600 dark:text-stone-300 space-y-0.5 text-right w-full sm:w-auto">
+                      <span className="font-bold block text-stone-900 dark:text-stone-100">
+                        أو ارفع ملف فيديو محلي من جهازك مباشرة:
+                      </span>
+                      <span className="text-[11px] text-stone-500 block">
+                        يدعم ملفات MP4 و WebM (يتم تجهيزها للمشغل المدمج فوراً مع استخراج المدة الزمنية تلقائياً)
+                      </span>
+                    </div>
+
+                    <label className="cursor-pointer px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 shadow-xs">
+                      <Film className="w-3.5 h-3.5" />
+                      <span>اختيار ملف فيديو من الجهاز</span>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/ogg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const blobUrl = URL.createObjectURL(file);
+                            setComposeVideoUrl(blobUrl);
+                            setComposeVideoSourceType('upload');
+                            // Extract duration
+                            const tempVideo = document.createElement('video');
+                            tempVideo.src = blobUrl;
+                            tempVideo.onloadedmetadata = () => {
+                              const minutes = Math.floor(tempVideo.duration / 60);
+                              const seconds = Math.floor(tempVideo.duration % 60);
+                              setComposeVideoDuration(
+                                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+                              );
+                            };
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Live Video Preview Box */}
+                  {composeVideoUrl && (
+                    <div className="p-3 rounded-xl bg-stone-950 border border-rose-500/30 space-y-2">
+                      <div className="flex items-center justify-between text-xs pb-1.5 border-b border-stone-800">
+                        <span className="font-bold flex items-center gap-1.5 text-rose-400">
+                          <Film className="w-3.5 h-3.5" />
+                          <span>معاينة حية للتقرير المصور قبل الحفظ:</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setComposeVideoUrl('');
+                            setComposeVideoDuration('');
+                          }}
+                          className="text-[11px] text-rose-400 hover:text-rose-300 cursor-pointer"
+                        >
+                          ✕ حذف ملف الفيديو
+                        </button>
+                      </div>
+                      <div className="max-w-md mx-auto rounded-lg overflow-hidden border border-stone-800 bg-black">
+                        <VideoPlayer
+                          src={composeVideoUrl}
+                          poster={selectedImage}
+                          title={title || 'معاينة التقرير المصور'}
+                          duration={composeVideoDuration}
+                          sourceType={composeVideoSourceType}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ENHANCED IMAGE & CAPTION SECTION WITH PHOTO LIBRARY */}
               <div className="p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-850/60 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
                     <Camera className="w-4 h-4 text-amber-600" />
-                    <span>الصورة الصحفية المصاحبة للموضوع</span>
+                    <span>
+                      {composeMediaType === 'video'
+                        ? 'صورة غلاف التقرير المصور (Video Poster)'
+                        : composeMediaType === 'infographic'
+                        ? 'صورة الإنفوجرافيك (طولي / عريض كامل بدون قص)'
+                        : 'الصورة الصحفية المصاحبة للموضوع'}
+                    </span>
                   </label>
 
                   <button
@@ -3123,6 +3588,486 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
                 </button>
               </div>
             </form>
+          )}
+
+          {/* TAB 8: DEDICATED SECTION FOR MUDIGITAL OFFICIAL CHANNELS & SETTINGS */}
+          {activeTab === 'social_accounts' && (
+            <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn py-2">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-stone-200 dark:border-stone-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-400 shrink-0">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold font-headline text-stone-900 dark:text-white">
+                        إدارة صفحات وقنوات صحيفة MUDigital الرسمية
+                      </h3>
+                      <span className="text-[10px] bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                        قسم مخصص
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      تحديد وتعديل عناوين صفحات وقنوات MUDigital الرسمية الأربعة التي تظهر أسفل كل مادة صحفية منشورة وتذييل الجريدة
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] text-stone-500 font-mono">
+                    {[socialFacebook, socialTwitter, socialWhatsapp, socialTelegram].filter(Boolean).length} من 4 قنوات مفعلة
+                  </span>
+                </div>
+              </div>
+
+              {/* Feedback Notifications */}
+              {socialSavedSuccess && (
+                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 font-bold flex items-center gap-2 animate-fadeIn shadow-2xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>تم حفظ وتحديث عناوين صفحات وقنوات MUDigital الرسمية بنجاح! تم تطبيق التغييرات فوراً على قارئ المواد وتذييل الصحيفة.</span>
+                </div>
+              )}
+
+              {/* DEDICATED SECTION: OFFICIAL MUDIGITAL CHANNELS AND PAGES */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (onUpdateSocialAccounts) {
+                    onUpdateSocialAccounts({
+                      facebook: socialFacebook.trim(),
+                      twitter: socialTwitter.trim(),
+                      whatsapp: socialWhatsapp.trim(),
+                      telegram: socialTelegram.trim(),
+                      instagram: socialInstagram.trim(),
+                      youtube: socialYoutube.trim(),
+                      autoPublishEnabled,
+                      autoPublishPlatforms: {
+                        facebook: autoFacebook,
+                        twitter: autoTwitter,
+                        telegram: autoTelegram,
+                        whatsapp: autoWhatsapp
+                      },
+                      autoPublishWebhookUrl: autoWebhookUrl.trim(),
+                      autoPublishLogs: socialAccounts?.autoPublishLogs || []
+                    });
+                  }
+                  setSocialSavedSuccess(true);
+                  setTimeout(() => setSocialSavedSuccess(false), 4500);
+                }}
+                className="space-y-5 bg-white dark:bg-stone-900/70 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-2xs"
+              >
+                <div className="border-b border-stone-200 dark:border-stone-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2 font-headline">
+                      <Globe className="w-4 h-4 text-amber-600" />
+                      <span>عناوين صفحات وقنوات صحيفة MUDigital الرسمية (4 منصات رئيسية)</span>
+                    </h4>
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      هذه العناوين تظهر للجمهور أسفل كل مادة صحفية في شريط "صفحات وقنوات صحيفة MUDigital الرسمية" وفي تذييل الموقع.
+                    </p>
+                  </div>
+                  <span className="text-[10px] bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-2.5 py-1 rounded-md font-mono self-start sm:self-auto">
+                    4 Official Channels
+                  </span>
+                </div>
+
+                {/* The 4 Official Channels Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* 1. Facebook Page */}
+                  <div className="p-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-900/40 space-y-2 hover:border-blue-300 dark:hover:border-blue-900/60 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-md bg-[#1877F2]/10 flex items-center justify-center text-[#1877F2]">
+                          <FacebookIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <span>صفحة فيسبوك الرسمية (Facebook)</span>
+                      </label>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${socialFacebook ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'}`}>
+                        {socialFacebook ? 'مربوط وجاهز' : 'بانتظار الرابط'}
+                      </span>
+                    </div>
+
+                    <input
+                      type="url"
+                      placeholder="https://facebook.com/mudigital.news"
+                      value={socialFacebook}
+                      onChange={(e) => setSocialFacebook(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 dir-ltr text-left font-mono focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                    />
+
+                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                      <span className="text-stone-400 text-[10px]">رابط الصفحة المباشر</span>
+                      {socialFacebook && (
+                        <a
+                          href={socialFacebook}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#1877F2] font-semibold hover:underline inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <span>تجربة فتح الرابط</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2. Twitter / X Account */}
+                  <div className="p-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-900/40 space-y-2 hover:border-stone-400 dark:hover:border-stone-700 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-md bg-stone-900/10 dark:bg-stone-100/10 flex items-center justify-center text-stone-900 dark:text-white">
+                          <XTwitterIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <span>حساب منصة X الرسمي (Twitter)</span>
+                      </label>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${socialTwitter ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'}`}>
+                        {socialTwitter ? 'مربوط وجاهز' : 'بانتظار الرابط'}
+                      </span>
+                    </div>
+
+                    <input
+                      type="url"
+                      placeholder="https://x.com/mudigital_news"
+                      value={socialTwitter}
+                      onChange={(e) => setSocialTwitter(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 dir-ltr text-left font-mono focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                    />
+
+                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                      <span className="text-stone-400 text-[10px]">حساب المنصة الرسمي</span>
+                      {socialTwitter && (
+                        <a
+                          href={socialTwitter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-stone-800 dark:text-stone-200 font-semibold hover:underline inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <span>تجربة فتح الرابط</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 3. WhatsApp Channel */}
+                  <div className="p-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-900/40 space-y-2 hover:border-emerald-300 dark:hover:border-emerald-900/60 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-md bg-[#25D366]/10 flex items-center justify-center text-[#25D366]">
+                          <WhatsAppIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <span>قناة واتساب الرسمية (WhatsApp)</span>
+                      </label>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${socialWhatsapp ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'}`}>
+                        {socialWhatsapp ? 'مربوط وجاهز' : 'بانتظار الرابط'}
+                      </span>
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="https://whatsapp.com/channel/... أو +201000000000"
+                      value={socialWhatsapp}
+                      onChange={(e) => setSocialWhatsapp(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 dir-ltr text-left font-mono focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                    />
+
+                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                      <span className="text-stone-400 text-[10px]">يدعم رابط القناة أو الرقم المباشر</span>
+                      {socialWhatsapp && (
+                        <a
+                          href={socialWhatsapp.startsWith('http') ? socialWhatsapp : `https://wa.me/${socialWhatsapp.replace(/\+/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#25D366] font-semibold hover:underline inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <span>تجربة فتح الرابط</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4. Telegram Channel */}
+                  <div className="p-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-900/40 space-y-2 hover:border-sky-300 dark:hover:border-sky-900/60 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-md bg-[#229ED9]/10 flex items-center justify-center text-[#229ED9]">
+                          <TelegramIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <span>قناة تليجرام الرسمية (Telegram)</span>
+                      </label>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${socialTelegram ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'}`}>
+                        {socialTelegram ? 'مربوط وجاهز' : 'بانتظار الرابط'}
+                      </span>
+                    </div>
+
+                    <input
+                      type="url"
+                      placeholder="https://t.me/mudigital_news"
+                      value={socialTelegram}
+                      onChange={(e) => setSocialTelegram(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 dir-ltr text-left font-mono focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                    />
+
+                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                      <span className="text-stone-400 text-[10px]">رابط القناة الإخبارية الرسمي</span>
+                      {socialTelegram && (
+                        <a
+                          href={socialTelegram}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#229ED9] font-semibold hover:underline inline-flex items-center gap-1 text-[11px]"
+                        >
+                          <span>تجربة فتح الرابط</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* LIVE PREVIEW OF IN-ARTICLE OFFICIAL CHANNELS BAR */}
+                <div className="p-4 rounded-xl bg-stone-100/80 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-amber-600" />
+                      <span>معاينة حية لشكل ظهور القنوات أسفل المواد الصحفية للقراء:</span>
+                    </span>
+                    <span className="text-[10px] text-stone-400 font-mono">Live Article Bar Preview</span>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-stone-900 rounded-lg border border-stone-200/80 dark:border-stone-800">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-500">
+                      <span className="font-semibold text-stone-800 dark:text-stone-200">صفحات وقنوات صحيفة MUDigital الرسمية:</span>
+                      {socialFacebook && (
+                        <span className="text-[#1877F2] font-medium inline-flex items-center gap-1">
+                          <FacebookIcon className="w-3 h-3" />
+                          <span>صفحة فيسبوك الرسمية</span>
+                        </span>
+                      )}
+                      {socialTwitter && (
+                        <>
+                          {socialFacebook && <span>·</span>}
+                          <span className="text-stone-900 dark:text-stone-100 font-medium inline-flex items-center gap-1">
+                            <XTwitterIcon className="w-3 h-3" />
+                            <span>حساب منصة X الرسمي</span>
+                          </span>
+                        </>
+                      )}
+                      {socialWhatsapp && (
+                        <>
+                          {(socialFacebook || socialTwitter) && <span>·</span>}
+                          <span className="text-[#25D366] font-medium inline-flex items-center gap-1">
+                            <WhatsAppIcon className="w-3 h-3" />
+                            <span>قناة واتساب الرسمية</span>
+                          </span>
+                        </>
+                      )}
+                      {socialTelegram && (
+                        <>
+                          {(socialFacebook || socialTwitter || socialWhatsapp) && <span>·</span>}
+                          <span className="text-[#229ED9] font-medium inline-flex items-center gap-1">
+                            <TelegramIcon className="w-3 h-3" />
+                            <span>قناة تليجرام الرسمية</span>
+                          </span>
+                        </>
+                      )}
+                      {!socialFacebook && !socialTwitter && !socialWhatsapp && !socialTelegram && (
+                        <span className="text-stone-400 italic text-[11px]">
+                          لم يتم إدخال أي روابط بعد. أدخل الروابط أعلاه لمشاهدة المعاينة الفورية هنا.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Save Button */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <span className="text-xs text-stone-500">
+                    يتم الحفظ والتطبيق الفوري على كافة أنحاء الموقع ومقالات الصحيفة.
+                  </span>
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-6 py-2.5 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-xl transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>حفظ وتثبيت عناوين صفحات وقنوات MUDigital الرسمية</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* AUTOMATION ENGINE SETTINGS CARD (SECONDARY) */}
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-stone-50 via-stone-100/50 to-transparent dark:from-stone-900/80 dark:via-stone-900/40 dark:to-transparent border border-stone-200 dark:border-stone-800 space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <h4 className="text-sm font-bold text-stone-900 dark:text-white font-headline">
+                        خاصية النشر الآلي المباشر (Automated Cross-Posting)
+                      </h4>
+                    </div>
+                    <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                      عند إجازة أي مقال أو تقرير للنشر النهائي (Published)، يتم آلياً إرسال ملخص المقال، العنوان، الرابط المباشر، وصورة الغلاف إلى منصات الصحيفة المحددة أدناه.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoPublishEnabled}
+                        onChange={(e) => setAutoPublishEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer dark:bg-stone-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                      <span className="mr-2 text-xs font-bold text-stone-900 dark:text-stone-100">
+                        {autoPublishEnabled ? 'مفعل' : 'معطل'}
+                      </span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestPublishing(true);
+                        setTestPublishSuccess(false);
+                        setTimeout(() => {
+                          setTestPublishing(false);
+                          setTestPublishSuccess(true);
+                          setTimeout(() => setTestPublishSuccess(false), 4500);
+                        }, 1200);
+                      }}
+                      disabled={testPublishing}
+                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                      title="تجربة النشر الآلي لخبر تجريبي على المنصات المختارة"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>{testPublishing ? 'جارٍ البث...' : 'اختبار البث التجريبي'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {testPublishSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 font-bold flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>نجح اختبار البث الآلي! تم تجهيز ومحاكاة إرسال بطاقة الخبر مع الصورة والملخص إلى المنصات المحددة بنجاح.</span>
+                  </div>
+                )}
+
+                {/* Platforms selection checkboxes */}
+                <div className="pt-3 border-t border-stone-200 dark:border-stone-800">
+                  <span className="block text-xs font-bold text-stone-800 dark:text-stone-200 mb-2.5">
+                    المنصات المستهدفة بالنشر الآلي فور اعتماد النشر:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+                    {/* Facebook Auto */}
+                    <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${autoFacebook ? 'bg-white dark:bg-stone-900 border-[#1877F2]/60 shadow-xs' : 'bg-stone-100/60 dark:bg-stone-800/40 border-stone-200 dark:border-stone-800 opacity-70'}`}>
+                      <input
+                        type="checkbox"
+                        checked={autoFacebook}
+                        onChange={(e) => setAutoFacebook(e.target.checked)}
+                        className="rounded text-[#1877F2]"
+                      />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1877F2] shrink-0" />
+                      <div>
+                        <span className="font-bold block text-[11px]">فيسبوك</span>
+                        <span className="text-[10px] text-stone-400">صفحة الصحيفة</span>
+                      </div>
+                    </label>
+
+                    {/* Twitter / X Auto */}
+                    <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${autoTwitter ? 'bg-white dark:bg-stone-900 border-stone-900 dark:border-stone-400 shadow-xs' : 'bg-stone-100/60 dark:bg-stone-800/40 border-stone-200 dark:border-stone-800 opacity-70'}`}>
+                      <input
+                        type="checkbox"
+                        checked={autoTwitter}
+                        onChange={(e) => setAutoTwitter(e.target.checked)}
+                        className="rounded text-black"
+                      />
+                      <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white shrink-0" />
+                      <div>
+                        <span className="font-bold block text-[11px]">منصة X</span>
+                        <span className="text-[10px] text-stone-400">تغريدة فورية</span>
+                      </div>
+                    </label>
+
+                    {/* Telegram Channel Auto */}
+                    <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${autoTelegram ? 'bg-white dark:bg-stone-900 border-[#229ED9]/60 shadow-xs' : 'bg-stone-100/60 dark:bg-stone-800/40 border-stone-200 dark:border-stone-800 opacity-70'}`}>
+                      <input
+                        type="checkbox"
+                        checked={autoTelegram}
+                        onChange={(e) => setAutoTelegram(e.target.checked)}
+                        className="rounded text-[#229ED9]"
+                      />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#229ED9] shrink-0" />
+                      <div>
+                        <span className="font-bold block text-[11px]">تليجرام</span>
+                        <span className="text-[10px] text-stone-400">قناة الأخبار</span>
+                      </div>
+                    </label>
+
+                    {/* WhatsApp Channel Auto */}
+                    <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${autoWhatsapp ? 'bg-white dark:bg-stone-900 border-[#25D366]/60 shadow-xs' : 'bg-stone-100/60 dark:bg-stone-800/40 border-stone-200 dark:border-stone-800 opacity-70'}`}>
+                      <input
+                        type="checkbox"
+                        checked={autoWhatsapp}
+                        onChange={(e) => setAutoWhatsapp(e.target.checked)}
+                        className="rounded text-[#25D366]"
+                      />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] shrink-0" />
+                      <div>
+                        <span className="font-bold block text-[11px]">واتساب</span>
+                        <span className="text-[10px] text-stone-400">قناة البث</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Optional Webhook Integration */}
+                <div className="pt-2">
+                  <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    رابط الـ Webhook التلقائي للتكامل مع خدمات الأتمتة (Webhook / API URL) - اختياري:
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://hooks.zapier.com/hooks/catch/... أو https://api.telegram.org/bot..."
+                    value={autoWebhookUrl}
+                    onChange={(e) => setAutoWebhookUrl(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 dir-ltr text-left font-mono"
+                  />
+                  <p className="text-[10px] text-stone-500 mt-1">
+                    يتيح ربط خروج الأخبار المعتمدة مباشرة بأي Webhook خارجي لإرسال تنبيهات تلقائية إلى سيرفرات الكلية أو قنوات تيليجرام وصفحات فيسبوك دون تدخل يدوي.
+                  </p>
+                </div>
+              </div>
+
+              {/* RECENT AUTO-PUBLISHING LOGS */}
+              {socialAccounts?.autoPublishLogs && socialAccounts.autoPublishLogs.length > 0 && (
+                <div className="p-4 rounded-2xl bg-white dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 space-y-2.5">
+                  <h4 className="text-xs font-bold text-stone-900 dark:text-white flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5 text-amber-600" />
+                    <span>سجل النشر الآلي الأخير على المنصات:</span>
+                  </h4>
+                  <div className="space-y-2 text-xs">
+                    {socialAccounts.autoPublishLogs.map((log) => (
+                      <div key={log.id} className="p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700/60 flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <span className="font-bold text-stone-900 dark:text-stone-100 block">{log.articleTitle}</span>
+                          <span className="text-[11px] text-stone-500 block">{log.message}</span>
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            {log.platforms.map((p) => (
+                              <span key={p} className="text-[10px] bg-stone-200 dark:bg-stone-700 px-1.5 py-0.2 rounded font-mono">
+                                {p === 'facebook' ? 'فيسبوك' : p === 'twitter' ? 'منصة X' : p === 'telegram' ? 'تليجرام' : 'واتساب'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-stone-400 font-mono shrink-0">{log.timestamp}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
         </div>

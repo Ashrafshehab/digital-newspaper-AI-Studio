@@ -1,6 +1,7 @@
 import React from 'react';
-import { Article } from '../types/newspaper';
-import { Clock, Eye, Heart, Bookmark, Volume2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Article, SocialMediaAccounts } from '../types/newspaper';
+import { Clock, Eye, Bookmark, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArticleShareButtons } from './ArticleShareButtons';
 
 interface LeadHeroSectionProps {
   leadArticle: Article;
@@ -9,6 +10,8 @@ interface LeadHeroSectionProps {
   onToggleBookmark: (articleId: string) => void;
   isBookmarked: (articleId: string) => boolean;
   onOpenAuthorProfile?: (authorName: string) => void;
+  onSelectTag?: (tag: string) => void;
+  socialAccounts?: SocialMediaAccounts;
 }
 
 export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
@@ -17,7 +20,9 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
   onOpenArticle,
   onToggleBookmark,
   isBookmarked,
-  onOpenAuthorProfile
+  onOpenAuthorProfile,
+  onSelectTag,
+  socialAccounts
 }) => {
   if (!leadArticle) return null;
 
@@ -70,6 +75,24 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
             {leadArticle.excerpt}
           </p>
 
+          {/* Lead Article Hashtags */}
+          {leadArticle.tags && leadArticle.tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-bold text-stone-400">وسوم المقال:</span>
+              {leadArticle.tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => onSelectTag && onSelectTag(tag)}
+                  className="text-xs px-2.5 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 dark:bg-stone-800 dark:hover:bg-amber-950/60 text-stone-700 dark:text-stone-300 hover:text-amber-800 dark:hover:text-amber-300 transition-colors cursor-pointer border border-stone-200 dark:border-stone-700 font-medium"
+                  title={`عرض وتجميع كل الموضوعات الموسومة بـ #${tag}`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Lead Author Byline, Read Time & Actions */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-200 dark:border-stone-800 text-xs text-stone-500 dark:text-stone-400">
             <div
@@ -98,7 +121,9 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <ArticleShareButtons article={leadArticle} socialAccounts={socialAccounts} layout="compact" />
+
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
                 <span>{leadArticle.readTimeMinutes} دقائق قراءة</span>
@@ -177,9 +202,31 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 line-clamp-2 mt-1 leading-relaxed font-body">
                   {article.excerpt}
                 </p>
+
+                {/* Secondary Article Hashtags */}
+                {article.tags && article.tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 pt-1.5">
+                    {article.tags.slice(0, 3).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={(e) => {
+                          if (onSelectTag) {
+                            e.stopPropagation();
+                            onSelectTag(tag);
+                          }
+                        }}
+                        className="text-[11px] px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 dark:bg-stone-800 dark:hover:bg-amber-950/50 text-stone-600 hover:text-amber-800 dark:text-stone-300 dark:hover:text-amber-300 transition-colors cursor-pointer border border-stone-200/80 dark:border-stone-700/80"
+                        title={`تصفية كل المقالات الموسومة بـ #${tag}`}
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 pt-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-stone-400 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-stone-800 dark:text-stone-200">{article.author.name}</span>
                   <span aria-hidden="true">·</span>
@@ -187,6 +234,7 @@ export const LeadHeroSection: React.FC<LeadHeroSectionProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <ArticleShareButtons article={article} socialAccounts={socialAccounts} layout="compact" />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

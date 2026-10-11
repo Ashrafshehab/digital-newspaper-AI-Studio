@@ -275,7 +275,7 @@ export const EditorialAnalyticsTab: React.FC<EditorialAnalyticsTabProps> = ({
             <Eye className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-2xl font-bold font-headline text-stone-950 dark:text-white">
-            {overallTotals.totalViews.toLocaleString('ar-EG')}
+            {overallTotals.totalViews.toLocaleString('en-US')}
           </div>
           <p className="text-[11px] text-stone-500 flex items-center gap-1">
             <TrendingUp className="w-3 h-3 text-emerald-600" />
@@ -304,7 +304,7 @@ export const EditorialAnalyticsTab: React.FC<EditorialAnalyticsTabProps> = ({
             <Sparkles className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-2xl font-bold font-headline text-stone-950 dark:text-white">
-            {overallTotals.avgViews.toLocaleString('ar-EG')} <span className="text-xs font-normal text-stone-500">مشاهدة</span>
+            {overallTotals.avgViews.toLocaleString('en-US')} <span className="text-xs font-normal text-stone-500">مشاهدة</span>
           </div>
           <p className="text-[11px] text-stone-500">
             معدل القراءة لكل مادة منشورة
@@ -323,7 +323,7 @@ export const EditorialAnalyticsTab: React.FC<EditorialAnalyticsTabProps> = ({
                 {overallTotals.topEditorByViews.name}
               </div>
               <p className="text-[11px] text-stone-500 mt-1">
-                {overallTotals.topEditorByViews.totalViews.toLocaleString('ar-EG')} مشاهدة ({overallTotals.topEditorByViews.publishedCount} مقال)
+                {overallTotals.topEditorByViews.totalViews.toLocaleString('en-US')} مشاهدة ({overallTotals.topEditorByViews.publishedCount} مقال)
               </p>
             </div>
           ) : (
@@ -453,7 +453,7 @@ export const EditorialAnalyticsTab: React.FC<EditorialAnalyticsTabProps> = ({
                       direction: 'rtl'
                     }}
                     labelStyle={{ fontWeight: 'bold', color: '#10b981', marginBottom: '4px' }}
-                    formatter={(val: any) => [`${Number(val).toLocaleString('ar-EG')} قراءة`, 'المشاهدات']}
+                    formatter={(val: any) => [`${Number(val).toLocaleString('en-US')} قراءة`, 'المشاهدات']}
                   />
                   <Legend
                     wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
@@ -662,11 +662,11 @@ export const EditorialAnalyticsTab: React.FC<EditorialAnalyticsTabProps> = ({
                       </td>
 
                       <td className="p-3.5 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                        {editor.totalViews.toLocaleString('ar-EG')}
+                        {editor.totalViews.toLocaleString('en-US')}
                       </td>
 
                       <td className="p-3.5 text-center font-mono text-stone-600 dark:text-stone-400">
-                        {avg.toLocaleString('ar-EG')}
+                        {avg.toLocaleString('en-US')}
                       </td>
 
                       <td className="p-3.5 text-stone-700 dark:text-stone-300 max-w-xs">
@@ -676,7 +676,7 @@ export const EditorialAnalyticsTab: React.FC<EditorialAnalyticsTabProps> = ({
                               {editor.topArticle.title}
                             </span>
                             <span className="text-[10px] text-stone-400 font-mono">
-                              ({(editor.topArticle.views || 0).toLocaleString('ar-EG')} قراءة)
+                              ({(editor.topArticle.views || 0).toLocaleString('en-US')} قراءة)
                             </span>
                           </div>
                         ) : (

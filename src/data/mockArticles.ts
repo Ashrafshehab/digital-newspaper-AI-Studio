@@ -1,4 +1,4 @@
-import { Article, Category, GraduationProjectInfo, EditorialUser } from '../types/newspaper';
+import { Article, Category, GraduationProjectInfo, EditorialUser, SocialMediaAccounts } from '../types/newspaper';
 
 // Generated editorial photography
 import heroImg from '../assets/images/hero_investigation_1790383838081.jpg';
@@ -213,6 +213,9 @@ export const INITIAL_ARTICLES: Article[] = [
     category: 'وسائط وملتيميديا',
     categoryId: 'multimedia',
     mediaType: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+    videoSourceType: 'youtube',
+    videoDuration: '04:15',
     imageDisplayMode: 'cover',
     author: {
       name: 'يوسف طارق البنا',
@@ -444,6 +447,10 @@ export const INITIAL_ARTICLES: Article[] = [
     ],
     category: 'نبض الجامعة',
     categoryId: 'campus',
+    mediaType: 'video',
+    videoUrl: '/videos/campus-documentary.mp4',
+    videoSourceType: 'direct_url',
+    videoDuration: '02:30',
     author: {
       name: 'يوسف طارق البنا',
       role: 'محرر الشؤون الطلابية والجامعية',
@@ -501,6 +508,10 @@ export const INITIAL_ARTICLES: Article[] = [
     pullQuote: 'حفظ التراث ليس تقديسا للماضي، بل هو استلهام لجذوره من أجل بناء مستقبل أصيل وواثق.',
     category: 'ثقافة ومجتمع',
     categoryId: 'culture',
+    mediaType: 'video',
+    videoUrl: '/videos/heritage-culture.mp4',
+    videoSourceType: 'direct_url',
+    videoDuration: '05:12',
     author: {
       name: 'نور الهدى إبراهيم',
       role: 'محررة الفنون والتراث الثقافي',
@@ -517,7 +528,7 @@ export const INITIAL_ARTICLES: Article[] = [
     trendingRank: 4,
     views: 1650,
     likes: 110,
-    tags: ['تراث', 'مخطوطات', 'رقمنة', 'تاريخ وثقافة'],
+    tags: ['تراث', 'مخطوطات', 'رقمنة', 'فيديو وثائقي', 'تاريخ وثقافة'],
     audioDuration: '04:10 دقيقة',
     status: 'published',
     comments: []
@@ -748,3 +759,30 @@ export const BREAKING_NEWS = [
   'طلاب قسم الصحافة يطلقون مبادرة وطنية لمكافحة الأخبار الكاذبة والتدقيق اللغوي الرقمي',
   'تحديث منصة MUDigital: تفعيل نظام التدقيق التحريري الثلاثي والقراءة الصوتية فائقة الجودة'
 ];
+
+export const INITIAL_SOCIAL_ACCOUNTS: SocialMediaAccounts = {
+  facebook: 'https://facebook.com/mudigital.news',
+  twitter: 'https://x.com/mudigital_news',
+  whatsapp: '+201000000000',
+  telegram: 'https://t.me/mudigital_news',
+  instagram: 'https://instagram.com/mudigital.news',
+  youtube: 'https://youtube.com/@mudigital.press',
+  autoPublishEnabled: true,
+  autoPublishPlatforms: {
+    facebook: true,
+    twitter: true,
+    telegram: true,
+    whatsapp: true
+  },
+  autoPublishLogs: [
+    {
+      id: 'log-auto-1',
+      articleId: 'art-mm-001',
+      articleTitle: 'إنفوجرافيك تفاعلي: تطور غرف الأخبار الرقمية وتوظيف الذكاء الاصطناعي',
+      timestamp: '26 سبتمبر 2026 - 11:00 ص',
+      platforms: ['facebook', 'twitter', 'telegram', 'whatsapp'],
+      status: 'success',
+      message: 'تم النشر الآلي وتوليد بطاقة المشاركة الذكية لجميع المنصات المحددة فور اعتماد النشر.'
+    }
+  ]
+};

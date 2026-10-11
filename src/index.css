@@ -177,4 +177,69 @@
   background: #b45309;
 }
 
+/* Breaking News: 5 seconds fixed still readability + 3.2 seconds slow, graceful gliding exit to the right */
+@keyframes headlineStayThenExitRight {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  5% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  /* يظل الخبر ثابتاً ومستقراً تماماً لمدة 5 ثوانٍ كاملة لقراءة واضحة وهادئة (حتى 61% من إجمالي 8.2 ثوان) */
+  61% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  /* انسحاب تدريجي بطيء جداً وناعم دون أي وميض أو سرعة مفاجئة */
+  80% {
+    opacity: 0.85;
+    transform: translateX(25%);
+  }
+  92% {
+    opacity: 0.4;
+    transform: translateX(55%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
 
+.animate-headline-stay-exit {
+  animation: headlineStayThenExitRight 8.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-headline-stay-exit.is-paused {
+  animation-play-state: paused !important;
+}
+
+/* Force Western Digits (1234567890) across all statistics, counters, and charts */
+.tabular-nums,
+.font-mono,
+.western-digits,
+[data-western-numbers="true"],
+.recharts-text,
+.recharts-cartesian-axis-tick text {
+  font-feature-settings: "locl" 0 !important;
+  -webkit-font-feature-settings: "locl" 0 !important;
+  -moz-font-feature-settings: "locl" 0 !important;
+  font-variant-numeric: tabular-nums lining-nums !important;
+}
+
+/* Newspaper Broadsheet Drop-Cap */
+.broadsheet-dropcap::first-letter {
+  font-family: var(--font-editorial);
+  font-size: 3.25rem;
+  line-height: 0.85;
+  float: right;
+  padding-left: 0.5rem;
+  padding-top: 0.15rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.dark .broadsheet-dropcap::first-letter {
+  color: #f59e0b;
+}

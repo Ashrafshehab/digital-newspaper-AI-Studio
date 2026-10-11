@@ -92,6 +92,9 @@ export interface Article {
   mediaType?: 'article' | 'infographic' | 'video' | 'podcast' | 'photo_story';
   imageDisplayMode?: 'cover' | 'contain' | 'infographic_vertical' | 'natural';
   videoUrl?: string;
+  videoSourceType?: 'upload' | 'youtube' | 'direct_url';
+  videoDuration?: string;
+  videoAspectRatio?: '16:9' | '9:16';
   podcastUrl?: string;
 }
 
@@ -189,5 +192,34 @@ export interface PhotoLibraryItem {
   isInfographic?: boolean;
   orientation?: 'vertical' | 'horizontal' | 'square';
   scalePercentage?: number;
+}
+
+export interface AutoPublishLog {
+  id: string;
+  articleId: string;
+  articleTitle: string;
+  timestamp: string;
+  platforms: ('facebook' | 'twitter' | 'telegram' | 'whatsapp')[];
+  status: 'success' | 'failed';
+  message: string;
+}
+
+export interface SocialMediaAccounts {
+  facebook: string;
+  twitter: string;
+  whatsapp: string; // phone or wa.me link
+  telegram?: string;
+  instagram?: string;
+  youtube?: string;
+  // Auto-publishing to official pages upon publication
+  autoPublishEnabled?: boolean;
+  autoPublishPlatforms?: {
+    facebook: boolean;
+    twitter: boolean;
+    telegram: boolean;
+    whatsapp: boolean;
+  };
+  autoPublishWebhookUrl?: string; // Optional custom webhook integration (e.g. Zapier, Make, n8n, Telegram Bot API)
+  autoPublishLogs?: AutoPublishLog[];
 }
 

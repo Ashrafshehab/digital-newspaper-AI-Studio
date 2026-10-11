@@ -1,138 +1,28 @@
 import React from 'react';
-import { Article } from '../types/newspaper';
-import { Clock, Eye, Bookmark, ArrowLeft, ShieldCheck, BarChart2, Video, Headphones } from 'lucide-react';
+import { Article, SocialMediaAccounts } from '../types/newspaper';
+import { Eye, Bookmark, ShieldCheck, BarChart2, Video, Headphones, Play } from 'lucide-react';
+import { ArticleShareButtons } from './ArticleShareButtons';
+import { toWesternDigits } from './ArticleReadershipAnalytics';
 
 interface ArticleCardProps {
   article: Article;
-  viewMode: 'grid' | 'broadsheet' | 'compact';
   onOpen: (article: Article) => void;
   onToggleBookmark: (id: string) => void;
   isBookmarked: boolean;
   onOpenAuthorProfile?: (authorName: string) => void;
+  onSelectTag?: (tag: string) => void;
+  socialAccounts?: SocialMediaAccounts;
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
   article,
-  viewMode,
   onOpen,
   onToggleBookmark,
   isBookmarked,
-  onOpenAuthorProfile
+  onOpenAuthorProfile,
+  onSelectTag,
+  socialAccounts
 }) => {
-  if (viewMode === 'compact') {
-    return (
-      <article
-        onClick={() => onOpen(article)}
-        className="group flex items-center justify-between gap-4 p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-white/60 dark:bg-stone-900/40 hover:bg-stone-100 dark:hover:bg-stone-800/80 transition-all cursor-pointer"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-[11px] text-stone-500 mb-1 flex-wrap">
-            <span className="font-semibold text-amber-700 dark:text-amber-400">{article.category}</span>
-            <span aria-hidden="true">·</span>
-            <span>{article.publishedAt.split('·')[0]}</span>
-            <span aria-hidden="true">·</span>
-            <span>{article.readTimeMinutes} دقائق</span>
-            {article.factCheck && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded text-[10px]">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  <span>مدقق {article.factCheck.transparencyScore}%</span>
-                </span>
-              </>
-            )}
-          </div>
-          <h3 className="text-sm sm:text-base font-bold font-headline text-stone-900 dark:text-stone-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">
-            {article.title}
-          </h3>
-          <p className="text-xs text-stone-600 dark:text-stone-400 truncate mt-0.5 font-body">
-            {article.excerpt}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleBookmark(article.id);
-            }}
-            className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors cursor-pointer ${
-              isBookmarked ? 'text-amber-600' : 'text-stone-400'
-            }`}
-          >
-            <Bookmark className="w-3.5 h-3.5" />
-          </button>
-          <ArrowLeft className="w-4 h-4 text-stone-400 group-hover:text-stone-900 dark:group-hover:text-white transition-colors" />
-        </div>
-      </article>
-    );
-  }
-
-  if (viewMode === 'broadsheet') {
-    return (
-      <article
-        onClick={() => onOpen(article)}
-        className="group cursor-pointer flex flex-col justify-between p-4 rounded border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 hover:border-stone-400 dark:hover:border-stone-600 transition-all space-y-3"
-      >
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-stone-500 pb-1.5 border-b border-stone-100 dark:border-stone-800">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-amber-800 dark:text-amber-400">{article.category}</span>
-              {article.factCheck && (
-                <span className="inline-flex items-center gap-1 text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-100/90 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px]">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  <span>{article.factCheck.verdictLabelAr} ({article.factCheck.transparencyScore}%)</span>
-                </span>
-              )}
-            </div>
-            <span>{article.readTimeMinutes} دقائق قراءة</span>
-          </div>
-
-          <h3 className="text-lg font-bold font-headline leading-snug text-stone-950 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-300 transition-colors">
-            {article.title}
-          </h3>
-
-          <p className="text-xs sm:text-sm text-stone-700 dark:text-stone-300 line-clamp-3 leading-relaxed font-body">
-            {article.excerpt}
-          </p>
-        </div>
-
-        <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs text-stone-500">
-          <div
-            onClick={(e) => {
-              if (onOpenAuthorProfile) {
-                e.stopPropagation();
-                onOpenAuthorProfile(article.author.name);
-              }
-            }}
-            className="flex items-center gap-2 cursor-pointer hover:text-amber-600 transition-colors"
-            title="عرض بروفايل المحرر"
-          >
-            <span className="font-semibold text-stone-800 dark:text-stone-200 hover:text-amber-600 dark:hover:text-amber-400">{article.author.name}</span>
-            {article.author.studentId && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="text-[11px] text-stone-400 font-mono">{article.author.studentId}</span>
-              </>
-            )}
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleBookmark(article.id);
-            }}
-            className={`p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors ${
-              isBookmarked ? 'text-amber-600' : 'text-stone-400'
-            }`}
-          >
-            <Bookmark className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </article>
-    );
-  }
-
-  // Default: Modern Grid view
   return (
     <article
       onClick={() => onOpen(article)}
@@ -164,11 +54,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             <span>إنفوجرافيك طولي كامل</span>
           </div>
         )}
-        {article.mediaType === 'video' && (
-          <div className="absolute bottom-2.5 right-2.5 bg-rose-700/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
-            <Video className="w-3 h-3 text-rose-200" />
-            <span>تقرير مصور وفيديو</span>
-          </div>
+        {(article.mediaType === 'video' || !!article.videoUrl) && (
+          <>
+            <div className="absolute inset-0 bg-black/25 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="w-10 h-10 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <Play className="w-5 h-5 fill-white ml-0.5" />
+              </div>
+            </div>
+            <div className="absolute bottom-2.5 right-2.5 bg-rose-700/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1 z-10">
+              <Video className="w-3 h-3 text-rose-200" />
+              <span>تقرير مصور (فيديو)</span>
+            </div>
+          </>
         )}
         {article.mediaType === 'podcast' && (
           <div className="absolute bottom-2.5 right-2.5 bg-purple-700/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
@@ -183,7 +80,16 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           <div className="flex items-center gap-2 text-xs text-stone-500">
             <span>{article.publishedAt.split('·')[0]}</span>
             <span aria-hidden="true">·</span>
-            <span>{article.readTimeMinutes} دقائق</span>
+            <span
+              dir="ltr"
+              lang="en"
+              style={{ fontFeatureSettings: "'locl' 0" }}
+              className="font-mono tabular-nums"
+            >
+              {article.videoDuration
+                ? `${toWesternDigits(article.videoDuration)} دقيقة`
+                : `${toWesternDigits(article.readTimeMinutes)} دقائق`}
+            </span>
           </div>
 
           <h3 className="text-base sm:text-lg font-bold font-headline leading-snug text-stone-950 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2">
@@ -193,6 +99,28 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 line-clamp-2 font-body leading-relaxed">
             {article.excerpt}
           </p>
+
+          {/* Hashtags */}
+          {article.tags && article.tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              {article.tags.slice(0, 3).map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={(e) => {
+                    if (onSelectTag) {
+                      e.stopPropagation();
+                      onSelectTag(tag);
+                    }
+                  }}
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-stone-100 hover:bg-amber-100 dark:bg-stone-800 dark:hover:bg-amber-950/50 text-stone-600 hover:text-amber-800 dark:text-stone-300 dark:hover:text-amber-300 transition-colors cursor-pointer border border-stone-200/80 dark:border-stone-700/80"
+                  title={`تصفية كل المقالات الموسومة بـ #${tag}`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs text-stone-500">
@@ -215,8 +143,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 font-mono text-[11px]">
-              <Eye className="w-3 h-3 text-stone-400" />
+            <ArticleShareButtons article={article} socialAccounts={socialAccounts} layout="compact" />
+            <span className="flex items-center gap-1 font-mono text-[11px] text-stone-400 pl-1 border-l border-stone-200 dark:border-stone-800">
+              <Eye className="w-3 h-3" />
               <span>{article.views}</span>
             </span>
             <button
@@ -227,6 +156,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               className={`p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors cursor-pointer ${
                 isBookmarked ? 'text-amber-600' : 'text-stone-400'
               }`}
+              title={isBookmarked ? 'إزالة من المحفوظات' : 'حفظ المقال'}
             >
               <Bookmark className="w-3.5 h-3.5" />
             </button>

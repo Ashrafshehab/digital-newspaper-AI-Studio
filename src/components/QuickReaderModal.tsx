@@ -7,10 +7,7 @@ import {
   Bookmark,
   Share2,
   Printer,
-  Volume2,
-  VolumeX,
   Play,
-  Pause,
   ZoomIn,
   ZoomOut,
   Send,
@@ -37,7 +34,8 @@ import {
   Maximize2,
   RotateCcw,
   ArrowLeft,
-  LayoutDashboard
+  LayoutDashboard,
+  Film
 } from 'lucide-react';
 import {
   Article,
@@ -48,12 +46,16 @@ import {
   WorkflowLog,
   FactCheckInfo,
   FactCheckVerdict,
-  VerificationSource
+  VerificationSource,
+  SocialMediaAccounts
 } from '../types/newspaper';
 import { PhotoLibraryModal, PhotoSelectionResult } from './PhotoLibraryModal';
 import { RichTextToolbar } from './RichTextToolbar';
 import { RichTextEditor } from './RichTextEditor';
 import { FormattedArticleContent, stripHtmlTags, articleContentToHtml, htmlToArticleParagraphs } from '../utils/formattedContent';
+import { ArticleShareButtons } from './ArticleShareButtons';
+import { ArticleReadershipAnalytics } from './ArticleReadershipAnalytics';
+import { VideoPlayer } from './VideoPlayer';
 
 interface QuickReaderModalProps {
   article: Article | null;
@@ -74,6 +76,8 @@ interface QuickReaderModalProps {
   onUpdatePhoto?: (id: string, updated: Partial<PhotoLibraryItem>) => void;
   onDeletePhoto?: (id: string) => void;
   onOpenAdminDashboard?: () => void;
+  onSelectTag?: (tag: string) => void;
+  socialAccounts?: SocialMediaAccounts;
 }
 
 export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
@@ -94,12 +98,11 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
   onAddPhoto,
   onUpdatePhoto,
   onDeletePhoto,
-  onOpenAdminDashboard
+  onOpenAdminDashboard,
+  onSelectTag,
+  socialAccounts
 }) => {
   const [fontSizeLevel, setFontSizeLevel] = useState<number>(1); // 0: Small, 1: Normal, 2: Large, 3: XL
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [audioSpeed, setAudioSpeed] = useState<number>(1);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Comments local state
@@ -121,6 +124,9 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
   const [editImageCaption, setEditImageCaption] = useState('');
   const [editMediaType, setEditMediaType] = useState<Article['mediaType']>('article');
   const [editImageDisplayMode, setEditImageDisplayMode] = useState<Article['imageDisplayMode']>('cover');
+  const [editVideoUrl, setEditVideoUrl] = useState('');
+  const [editVideoDuration, setEditVideoDuration] = useState('');
+  const [editVideoSourceType, setEditVideoSourceType] = useState<'upload' | 'youtube' | 'direct_url'>('youtube');
   const [editCorrectionNotice, setEditCorrectionNotice] = useState('');
   const [editAuthorName, setEditAuthorName] = useState('');
   const [editAuthorRole, setEditAuthorRole] = useState('');
@@ -161,6 +167,9 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
       setEditImageCaption(article.imageCaption || '');
       setEditMediaType(article.mediaType || 'article');
       setEditImageDisplayMode(article.imageDisplayMode || 'cover');
+      setEditVideoUrl(article.videoUrl || '');
+      setEditVideoDuration(article.videoDuration || '');
+      setEditVideoSourceType(article.videoSourceType || 'youtube');
       setEditCorrectionNotice(article.correctionNotice || '');
       setEditAuthorName(article.author?.name || '');
       setEditAuthorRole(article.author?.role || '');
@@ -232,230 +241,6 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, onNextArticle, onPrevArticle, isEditing, isPhotoPickerOpen]);
-
-  // Smart Arabic Voice Reader (SpeechSynthesis)
-  const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
-  const [availableArabicVoices, setAvailableArabicVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [speechStatusText, setSpeechStatusText] = useState<string>('');
-  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const speechIndexRef = useRef<number>(0);
-  const speechChunksRef = useRef<string[]>([]);
-  const isSpeechPausedRef = useRef<boolean>(false);
-
-  // Load available Arabic voices
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-    const updateVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const arVoices = voices.filter(
-        (v) => v.lang.toLowerCase().startsWith('ar') || v.lang.toLowerCase().includes('arabic')
-      );
-      setAvailableArabicVoices(arVoices);
-      if (arVoices.length > 0 && !selectedVoiceName) {
-        // Prefer natural / google / premium voices if present
-        const preferred = arVoices.find(
-          (v) =>
-            v.name.includes('Google') ||
-            v.name.includes('Natural') ||
-            v.name.includes('Salma') ||
-            v.name.includes('Tarik') ||
-            v.name.includes('Maged')
-        ) || arVoices[0];
-        setSelectedVoiceName(preferred.name);
-      }
-    };
-
-    updateVoices();
-    window.speechSynthesis.onvoiceschanged = updateVoices;
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
-  }, [selectedVoiceName]);
-
-  // Stop audio whenever modal closes or article changes
-  const stopAudioSpeech = useCallback(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsPlayingAudio(false);
-    isSpeechPausedRef.current = false;
-    speechIndexRef.current = 0;
-    setAudioProgress(0);
-    setSpeechStatusText('');
-  }, []);
-
-  // Stop reading when article changes or component unmounts
-  useEffect(() => {
-    stopAudioSpeech();
-  }, [article?.id, stopAudioSpeech]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
-  // Split article into natural sentences / segments for reliable speech synthesis
-  const prepareArticleSpeechChunks = useCallback((): string[] => {
-    if (!article) return [];
-    const chunks: string[] = [];
-
-    // Title & subtitle
-    if (article.title) chunks.push(article.title);
-    if (article.subtitle) chunks.push(article.subtitle);
-
-    // Metadata intro
-    chunks.push(`تقرير من إعداد الصحفي ${article.author?.name || 'محرر المجلة'} في قسم ${article.category}.`);
-
-    // Excerpt
-    if (article.excerpt) chunks.push(article.excerpt);
-
-    // Pull quote
-    if (article.pullQuote) chunks.push(`اقتباس: ${article.pullQuote}`);
-
-    // Main paragraphs (broken by periods / newlines, stripped of HTML tags for speech)
-    if (article.content && article.content.length > 0) {
-      article.content.forEach((para) => {
-        const cleanPara = stripHtmlTags(para);
-        // split by punctuation to avoid long sentence browser bugs
-        const sentences = cleanPara.split(/([.،!؟\n]+)/).filter((s) => s.trim().length > 0);
-        let temp = '';
-        for (const s of sentences) {
-          if (temp.length + s.length < 180) {
-            temp += ' ' + s;
-          } else {
-            if (temp.trim()) chunks.push(temp.trim());
-            temp = s;
-          }
-        }
-        if (temp.trim()) chunks.push(temp.trim());
-      });
-    }
-
-    return chunks.filter((c) => c.length > 2);
-  }, [article]);
-
-  // Speak a specific chunk index sequentially
-  const speakNextChunk = useCallback(
-    (chunkIndex: number, chunks: string[], speed: number, voiceName: string) => {
-      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-        setIsPlayingAudio(false);
-        setSpeechStatusText('متصفحك لا يدعم خاصية تحويل النص إلى كلام (Web Speech API)');
-        return;
-      }
-
-      if (chunkIndex >= chunks.length) {
-        setIsPlayingAudio(false);
-        speechIndexRef.current = 0;
-        setAudioProgress(100);
-        setSpeechStatusText('اكتملت قراءة المقال بالكامل بنجاح ✓');
-        return;
-      }
-
-      const textToSpeak = chunks[chunkIndex];
-      const utter = new SpeechSynthesisUtterance(textToSpeak);
-      utter.lang = 'ar-SA';
-      utter.rate = speed;
-      utter.pitch = 1.0;
-
-      // Assign voice
-      const voices = window.speechSynthesis.getVoices();
-      const chosenVoice =
-        voices.find((v) => v.name === voiceName) ||
-        voices.find((v) => v.lang.toLowerCase().startsWith('ar')) ||
-        null;
-      if (chosenVoice) {
-        utter.voice = chosenVoice;
-      }
-
-      utter.onstart = () => {
-        setIsPlayingAudio(true);
-        const progress = Math.round(((chunkIndex + 1) / chunks.length) * 100);
-        setAudioProgress(progress);
-        setSpeechStatusText(`جاري القراءة بصوت عربي نقي... (${chunkIndex + 1} من ${chunks.length})`);
-      };
-
-      utter.onend = () => {
-        speechIndexRef.current = chunkIndex + 1;
-        speakNextChunk(chunkIndex + 1, chunks, speed, voiceName);
-      };
-
-      utter.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
-        // If error wasn't an intentional cancel, continue to next chunk
-        if (e.error !== 'canceled' && e.error !== 'interrupted') {
-          speechIndexRef.current = chunkIndex + 1;
-          speakNextChunk(chunkIndex + 1, chunks, speed, voiceName);
-        }
-      };
-
-      speechUtteranceRef.current = utter;
-      window.speechSynthesis.speak(utter);
-    },
-    []
-  );
-
-  // Play / Pause toggle handler
-  const handleTogglePlayAudio = () => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      alert('عذراً، متصفحك لا يدعم محرك النطق الصوتي.');
-      return;
-    }
-
-    if (isPlayingAudio) {
-      // Pause
-      window.speechSynthesis.pause();
-      setIsPlayingAudio(false);
-      isSpeechPausedRef.current = true;
-      setSpeechStatusText('تم إيقاف القراءة مؤقتاً.');
-    } else {
-      if (isSpeechPausedRef.current && window.speechSynthesis.paused) {
-        // Resume
-        window.speechSynthesis.resume();
-        setIsPlayingAudio(true);
-        isSpeechPausedRef.current = false;
-        setSpeechStatusText('تم استئناف القراءة الصوتية...');
-      } else {
-        // Start fresh or restart
-        window.speechSynthesis.cancel();
-        const chunks = prepareArticleSpeechChunks();
-        speechChunksRef.current = chunks;
-        speechIndexRef.current = 0;
-        setAudioProgress(0);
-        setIsPlayingAudio(true);
-        isSpeechPausedRef.current = false;
-        speakNextChunk(0, chunks, audioSpeed, selectedVoiceName);
-      }
-    }
-  };
-
-  // Speed change handler: restarts speaking current chunk with new speed
-  const handleChangeSpeed = (newSpeed: number) => {
-    setAudioSpeed(newSpeed);
-    if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
-      const chunks = speechChunksRef.current.length > 0 ? speechChunksRef.current : prepareArticleSpeechChunks();
-      const currentIdx = speechIndexRef.current;
-      speakNextChunk(currentIdx, chunks, newSpeed, selectedVoiceName);
-    }
-  };
-
-  // Voice change handler
-  const handleChangeVoice = (newVoiceName: string) => {
-    setSelectedVoiceName(newVoiceName);
-    if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
-      const chunks = speechChunksRef.current.length > 0 ? speechChunksRef.current : prepareArticleSpeechChunks();
-      const currentIdx = speechIndexRef.current;
-      speakNextChunk(currentIdx, chunks, audioSpeed, newVoiceName);
-    }
-  };
 
   if (!article) return null;
 
@@ -567,6 +352,9 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
         imageCaption: editImageCaption.trim() || undefined,
         mediaType: editMediaType,
         imageDisplayMode: editImageDisplayMode,
+        videoUrl: editMediaType === 'video' ? editVideoUrl.trim() || undefined : undefined,
+        videoDuration: editMediaType === 'video' ? editVideoDuration.trim() || undefined : undefined,
+        videoSourceType: editMediaType === 'video' ? editVideoSourceType : undefined,
         correctionNotice: editCorrectionNotice.trim() || undefined,
         lastEditedAt: nowFormatted,
         workflowLogs: [correctionLog, ...existingLogs],
@@ -670,21 +458,25 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-      <div
-        className="bg-[#FBF9F5] dark:bg-[#121316] w-full max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[92vh] sm:rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-800 flex flex-col overflow-hidden text-stone-900 dark:text-stone-100 transition-colors font-body"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 1. Modal Top Bar (Zero-distraction controls) */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-stone-200 dark:border-stone-800 bg-[#FBF9F5]/95 dark:bg-[#121316]/95 backdrop-blur-md">
-          {/* Left: Article category & fast prev/next */}
+    <div className="w-full bg-[#FBF9F5] dark:bg-[#121316] text-stone-900 dark:text-stone-100 transition-colors font-body rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm overflow-hidden my-4">
+      <div className="w-full flex flex-col">
+        {/* 1. In-Page Top Navigation Bar with Back-to-feed Button */}
+        <div className="sticky top-14 z-20 flex flex-wrap items-center justify-between px-4 sm:px-6 py-3 border-b border-stone-200 dark:border-stone-800 bg-[#FBF9F5]/95 dark:bg-[#121316]/95 backdrop-blur-md gap-3">
+          {/* Left: Return to Home / Category Feed & Article Category */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-stone-200 bg-stone-200/70 hover:bg-amber-600 hover:text-white dark:bg-stone-800 dark:hover:bg-amber-600 rounded-lg transition-colors cursor-pointer"
+              title="العودة للصفحة الرئيسية وقائمة الأخبار"
+            >
+              <ArrowLeft className="w-4 h-4 rotate-180" />
+              <span>العودة للأخبار الرئيسية</span>
+            </button>
+
+            <span className="text-stone-300 dark:text-stone-700 hidden sm:inline">|</span>
+
             <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
               {article.category}
-            </span>
-            <span className="text-stone-300 dark:text-stone-700">|</span>
-            <span className="text-xs text-stone-500 font-medium hidden sm:inline">
-              وضع القراءة السريعة المعززة
             </span>
 
             {/* Quick Next/Prev for rapid browsing */}
@@ -774,11 +566,11 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
               </>
             )}
 
-            {/* Close button */}
+            {/* Close / Return to feed button */}
             <button
               onClick={onClose}
               className="p-1.5 rounded-md text-stone-500 hover:text-stone-900 dark:hover:text-white hover:bg-stone-200/60 dark:hover:bg-stone-800 transition-colors cursor-pointer"
-              title="إغلاق النافذة"
+              title="العودة لقائمة الأخبار"
             >
               <X className="w-5 h-5" />
             </button>
@@ -821,8 +613,8 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
           </div>
         )}
 
-        {/* 3. Main Body: Read Mode vs. Edit / Correction Mode */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+        {/* 3. Main Body: In-Page Full Content Flow */}
+        <div className="w-full p-4 sm:p-8">
           {isEditing ? (
             /* POST-PUBLICATION EDIT / CORRECTION FORM */
             <form onSubmit={handleSaveCorrection} className="max-w-3xl mx-auto space-y-5 animate-fadeIn">
@@ -1035,13 +827,191 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                 />
               </div>
 
+              {/* Media Type Selector */}
+              <div className="p-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 space-y-2">
+                <label className="block text-xs font-bold text-stone-900 dark:text-stone-100">
+                  نوع المادة الصحفية (Media Format):
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditMediaType('article')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      editMediaType === 'article'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    مقال صحفي تقليدي
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditMediaType('video')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      editMediaType === 'video'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    تقرير مصور / فيديو
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditMediaType('infographic')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      editMediaType === 'infographic'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    إنفوجرافيك كامل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditMediaType('podcast')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      editMediaType === 'podcast'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    بودكاست صوتي
+                  </button>
+                </div>
+              </div>
+
+              {/* Dedicated Video Configuration Panel when Media Type is Video */}
+              {editMediaType === 'video' && (
+                <div className="p-4 rounded-xl border-2 border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-rose-200 dark:border-rose-900/50">
+                    <span className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                      <Film className="w-4 h-4" />
+                      <span>إعدادات التقرير المصور ورفع الفيديو (Video Journalism)</span>
+                    </span>
+                    <span className="text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded font-mono">
+                      MP4 / WebM / YouTube
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                        رابط الفيديو (YouTube أو رابط MP4 مباشر):
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://www.youtube.com/watch?v=... أو https://.../video.mp4"
+                        value={editVideoUrl}
+                        onChange={(e) => {
+                          setEditVideoUrl(e.target.value);
+                          if (e.target.value.includes('youtu')) {
+                            setEditVideoSourceType('youtube');
+                          } else {
+                            setEditVideoSourceType('direct_url');
+                          }
+                        }}
+                        className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300">
+                        مدة التقرير المصور (مثال: 04:15):
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="04:15"
+                        value={editVideoDuration}
+                        onChange={(e) => setEditVideoDuration(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Direct File Upload Option */}
+                  <div className="p-3 rounded-lg bg-white dark:bg-stone-900 border border-rose-200 dark:border-rose-900/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-stone-600 dark:text-stone-300 space-y-0.5 text-right w-full sm:w-auto">
+                      <span className="font-bold block text-stone-900 dark:text-stone-100">
+                        أو ارفع ملف فيديو محلي من جهازك مباشرة:
+                      </span>
+                      <span className="text-[11px] text-stone-500 block">
+                        يدعم ملفات MP4 و WebM (يتم تجهيزها للمشغل المدمج فوراً)
+                      </span>
+                    </div>
+
+                    <label className="cursor-pointer px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5 shadow-xs">
+                      <Film className="w-3.5 h-3.5" />
+                      <span>اختيار ملف فيديو من الجهاز</span>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/ogg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const blobUrl = URL.createObjectURL(file);
+                            setEditVideoUrl(blobUrl);
+                            setEditVideoSourceType('upload');
+                            // Extract duration
+                            const tempVideo = document.createElement('video');
+                            tempVideo.src = blobUrl;
+                            tempVideo.onloadedmetadata = () => {
+                              const minutes = Math.floor(tempVideo.duration / 60);
+                              const seconds = Math.floor(tempVideo.duration % 60);
+                              setEditVideoDuration(
+                                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+                              );
+                            };
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Live Video Preview Box */}
+                  {editVideoUrl && (
+                    <div className="p-3 rounded-xl bg-stone-950 border border-rose-500/30 space-y-2">
+                      <div className="flex items-center justify-between text-xs pb-1.5 border-b border-stone-800">
+                        <span className="font-bold flex items-center gap-1.5 text-rose-400">
+                          <Film className="w-3.5 h-3.5" />
+                          <span>معاينة حية للتقرير المصور أثناء التعديل:</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditVideoUrl('');
+                            setEditVideoDuration('');
+                          }}
+                          className="text-[11px] text-rose-400 hover:text-rose-300 cursor-pointer"
+                        >
+                          ✕ حذف ملف الفيديو
+                        </button>
+                      </div>
+                      <div className="max-w-md mx-auto rounded-lg overflow-hidden border border-stone-800 bg-black">
+                        <VideoPlayer
+                          src={editVideoUrl}
+                          poster={editImage}
+                          title={editTitle || 'معاينة التقرير المصور'}
+                          duration={editVideoDuration}
+                          sourceType={editVideoSourceType}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Image & Caption Section with Photo Library Trigger */}
               <div className="p-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
                     <Camera className="w-4 h-4 text-amber-600" />
                     <span>
-                      {editMediaType === 'infographic' || editImageDisplayMode === 'infographic_vertical'
+                      {editMediaType === 'video'
+                        ? 'صورة غلاف التقرير المصور (Video Poster)'
+                        : editMediaType === 'infographic' || editImageDisplayMode === 'infographic_vertical'
                         ? 'صورة الإنفوجرافيك (طولي / عريض كامل بدون قص)'
                         : 'الصورة الصحفية للمقال (1200 × 675 - نسبة 16:9)'}
                     </span>
@@ -1364,6 +1334,12 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                     <span>مشروع تخرج 2026</span>
                   </div>
                 </div>
+
+                {/* Top Quick Share Bar for Readers */}
+                <div className="flex items-center justify-between py-2 border-b border-stone-200/60 dark:border-stone-800/60 text-xs">
+                  <span className="text-[11px] text-stone-500 font-bold">مشاركة سريعة للمقال:</span>
+                  <ArticleShareButtons article={article} socialAccounts={socialAccounts} layout="compact" />
+                </div>
               </div>
 
               {/* Fact-Checking & Source Transparency Badge Card */}
@@ -1463,104 +1439,6 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                 </div>
               )}
 
-              {/* Interactive Audio Player (Real Arabic TTS Narration) */}
-              <div className="max-w-3xl mx-auto bg-stone-100/90 dark:bg-stone-900/90 rounded-xl p-3 sm:p-4 border border-amber-200 dark:border-stone-800 shadow-xs flex flex-col gap-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 text-stone-900 dark:text-stone-100 font-bold">
-                    <span className="p-1 rounded-full bg-amber-600/10 text-amber-600 dark:text-amber-400">
-                      <Volume2 className="w-4 h-4" />
-                    </span>
-                    <span>القارئ الصوتي الذكي (نطق عربي فصيح وطبيعي)</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Arabic Voice Selection if available */}
-                    {availableArabicVoices.length > 1 && (
-                      <select
-                        value={selectedVoiceName}
-                        onChange={(e) => handleChangeVoice(e.target.value)}
-                        className="px-2 py-1 text-[11px] rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 cursor-pointer"
-                        title="اختيار الصوت العربي"
-                      >
-                        {availableArabicVoices.map((voice) => (
-                          <option key={voice.name} value={voice.name}>
-                            {voice.name.replace(/Google|Microsoft/g, '').trim()} ({voice.lang})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <span className="font-mono text-stone-500 text-[11px]">
-                      {article.audioDuration || 'قراءة كاملة'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 sm:gap-3">
-                  {/* Play / Pause Button */}
-                  <button
-                    onClick={handleTogglePlayAudio}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-sm ${
-                      isPlayingAudio
-                        ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-400/50'
-                        : 'bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 hover:scale-105'
-                    }`}
-                    title={isPlayingAudio ? 'إيقاف مؤقت' : 'تشغيل الاستماع باللغة العربية'}
-                  >
-                    {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 mr-0.5" />}
-                  </button>
-
-                  {/* Stop Button */}
-                  {(isPlayingAudio || audioProgress > 0) && (
-                    <button
-                      onClick={stopAudioSpeech}
-                      className="p-1.5 rounded-full text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors cursor-pointer shrink-0"
-                      title="إيقاف وإعادة للبداية"
-                    >
-                      <VolumeX className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {/* Progress bar */}
-                  <div className="flex-1 bg-stone-200 dark:bg-stone-800 h-2.5 rounded-full overflow-hidden relative shadow-inner">
-                    <div
-                      className="bg-amber-600 h-full transition-all duration-300 rounded-full"
-                      style={{ width: `${audioProgress}%` }}
-                    />
-                  </div>
-                  <span className="font-mono text-[10px] text-stone-500 w-8 text-center shrink-0">
-                    {audioProgress}%
-                  </span>
-
-                  {/* Speed toggle */}
-                  <button
-                    onClick={() => {
-                      const speeds = [0.9, 1, 1.25, 1.5];
-                      const nextIdx = (speeds.indexOf(audioSpeed) + 1) % speeds.length;
-                      handleChangeSpeed(speeds[nextIdx]);
-                    }}
-                    className="px-2 py-1 text-[11px] font-mono font-bold bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded text-stone-700 dark:text-stone-300 hover:bg-stone-50 transition-colors cursor-pointer shrink-0"
-                    title="التحكم في سرعة الإلقاء"
-                  >
-                    {audioSpeed}x
-                  </button>
-                </div>
-
-                {/* Status caption & animation */}
-                {isPlayingAudio ? (
-                  <div className="flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-900/60">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
-                      <span>{speechStatusText || 'جاري نطق المقال بصوت عربي فصيح...'}</span>
-                    </div>
-                    <span className="text-[10px] opacity-80">يمكنك المتابعة مع النص بالأسفل</span>
-                  </div>
-                ) : speechStatusText ? (
-                  <p className="text-[11px] text-stone-600 dark:text-stone-400 text-right">
-                    {speechStatusText}
-                  </p>
-                ) : null}
-              </div>
-
               {/* Article Featured Photo / Infographic / Multimedia View */}
               <div className="max-w-3xl mx-auto space-y-2">
                 {article.mediaType === 'infographic' || article.imageDisplayMode === 'infographic_vertical' ? (
@@ -1593,25 +1471,17 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                       />
                     </div>
                   </div>
-                ) : article.mediaType === 'video' ? (
-                  /* Video / Multimedia Report View */
+                ) : article.mediaType === 'video' || article.videoUrl ? (
+                  /* Video / Multimedia Report View with interactive VideoPlayer */
                   <div className="space-y-2">
-                    <div className="relative aspect-16/9 rounded-xl overflow-hidden bg-stone-900 border border-stone-800 flex items-center justify-center group">
-                      <img
-                        src={article.image}
-                        alt={article.title}
-                        className="w-full h-full object-cover opacity-90 group-hover:opacity-75 transition-opacity"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/35 group-hover:bg-black/45 transition-colors">
-                        <div className="w-16 h-16 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                          <Play className="w-8 h-8 ml-1" />
-                        </div>
-                        <span className="mt-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-xs text-white text-xs font-bold">
-                          مشاهدة التقرير المصور (فيديو HD)
-                        </span>
-                      </div>
-                    </div>
+                    <VideoPlayer
+                      src={article.videoUrl}
+                      poster={article.image}
+                      title={article.title}
+                      duration={article.videoDuration}
+                      sourceType={article.videoSourceType}
+                      aspectRatio={article.videoAspectRatio || '16:9'}
+                    />
                   </div>
                 ) : (
                   /* Standard Landscape Photo */
@@ -1649,21 +1519,42 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                   </blockquote>
                 )}
 
-                {/* Article Tags */}
+                {/* Article Tags / Hashtags */}
                 <div className="pt-4 border-t border-stone-200 dark:border-stone-800 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-stone-500">الكلمات المفتاحية:</span>
+                  <span className="text-xs font-bold text-stone-500">الكلمات المفتاحية والوسوم:</span>
                   {article.tags.map((tag) => (
-                    <span
+                    <button
                       key={tag}
-                      className="text-xs text-stone-600 dark:text-stone-400 hover:text-stone-950 dark:hover:text-white cursor-pointer"
+                      type="button"
+                      onClick={() => {
+                        if (onSelectTag) {
+                          onSelectTag(tag);
+                          onClose();
+                        }
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-full bg-stone-100 hover:bg-amber-100 dark:bg-stone-800 dark:hover:bg-amber-950/60 text-stone-700 dark:text-stone-300 hover:text-amber-800 dark:hover:text-amber-300 border border-stone-200 dark:border-stone-700 hover:border-amber-300 transition-all cursor-pointer font-medium flex items-center gap-0.5"
+                      title={`عرض وتجميع كل الموضوعات الموسومة بـ #${tag}`}
                     >
-                      #{tag}
-                    </span>
+                      <span className="text-amber-600 font-bold">#</span>
+                      <span>{tag}</span>
+                    </button>
                   ))}
                 </div>
 
-                {/* Interactive Feedback Bar (Likes & Share - Zero Distraction) */}
-                <div className="flex items-center justify-between py-4 border-y border-stone-200 dark:border-stone-800 my-6">
+                {/* Article Sharing (WhatsApp, Twitter/X, Facebook, Telegram) */}
+                <ArticleShareButtons
+                  article={article}
+                  socialAccounts={socialAccounts}
+                  layout="expanded"
+                  className="my-6"
+                  onOpenChannelsConfig={onOpenAdminDashboard}
+                />
+
+                {/* Article Readership Growth Chart Section (Recharts 24h & 7d) */}
+                <ArticleReadershipAnalytics article={article} />
+
+                {/* Interactive Feedback Bar (Likes & Quick Share) */}
+                <div className="flex items-center justify-between py-4 border-y border-stone-200 dark:border-stone-800 my-4">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={handleLike}
@@ -1684,9 +1575,21 @@ export const QuickReaderModal: React.FC<QuickReaderModalProps> = ({
                       className="text-xs text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer transition-colors"
                     >
                       {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-                      <span>{copiedLink ? 'تم نسخ الرابط!' : 'مشاركة المقال'}</span>
+                      <span>{copiedLink ? 'تم نسخ الرابط!' : 'مشاركة سريعة'}</span>
                     </button>
                   </div>
+                </div>
+
+                {/* Bottom Back Button to return to feed seamlessly */}
+                <div className="pt-6 pb-2 text-center border-t border-stone-200 dark:border-stone-800">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-stone-800 dark:text-stone-100 bg-stone-200/80 hover:bg-amber-600 hover:text-white dark:bg-stone-800 dark:hover:bg-amber-600 shadow-xs transition-all cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4 rotate-180" />
+                    <span>العودة لقائمة الأخبار والرئيسية</span>
+                  </button>
                 </div>
               </div>
             </article>

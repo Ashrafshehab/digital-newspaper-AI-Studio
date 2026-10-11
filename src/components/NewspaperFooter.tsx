@@ -1,19 +1,22 @@
 import React from 'react';
 import { ArrowUp, Award, ShieldCheck } from 'lucide-react';
-import { GraduationProjectInfo } from '../types/newspaper';
+import { GraduationProjectInfo, SocialMediaAccounts } from '../types/newspaper';
+import { WhatsAppIcon, XTwitterIcon, FacebookIcon, TelegramIcon } from './ArticleShareButtons';
 
 interface NewspaperFooterProps {
   info: GraduationProjectInfo;
   onOpenGraduationInfo: () => void;
   onSelectCategory: (id: string) => void;
   onOpenEditorialPortal: () => void;
+  socialAccounts?: SocialMediaAccounts;
 }
 
 export const NewspaperFooter: React.FC<NewspaperFooterProps> = ({
   info,
   onOpenGraduationInfo,
   onSelectCategory,
-  onOpenEditorialPortal
+  onOpenEditorialPortal,
+  socialAccounts
 }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -51,6 +54,61 @@ export const NewspaperFooter: React.FC<NewspaperFooterProps> = ({
                 <span>دخول بوابة التحرير والنشر</span>
               </button>
             </div>
+
+            {/* Official Social Media Links */}
+            {socialAccounts && (
+              <div className="pt-3 border-t border-stone-200/80 dark:border-stone-800 flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-700 dark:text-stone-300 ml-1">صفحات صحيفة MUDigital الرسمية:</span>
+                {socialAccounts.whatsapp && (
+                  <a
+                    href={socialAccounts.whatsapp.startsWith('http') ? socialAccounts.whatsapp : `https://wa.me/${socialAccounts.whatsapp.replace(/\+/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-full bg-stone-200 dark:bg-stone-800 hover:bg-[#25D366] hover:text-white transition-all text-stone-600 dark:text-stone-300"
+                    title="واتساب"
+                    aria-label="واتساب"
+                  >
+                    <WhatsAppIcon className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                {socialAccounts.twitter && (
+                  <a
+                    href={socialAccounts.twitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-full bg-stone-200 dark:bg-stone-800 hover:bg-black hover:text-white transition-all text-stone-600 dark:text-stone-300"
+                    title="منصة X (تويتر)"
+                    aria-label="منصة X (تويتر)"
+                  >
+                    <XTwitterIcon className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                {socialAccounts.facebook && (
+                  <a
+                    href={socialAccounts.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-full bg-stone-200 dark:bg-stone-800 hover:bg-[#1877F2] hover:text-white transition-all text-stone-600 dark:text-stone-300"
+                    title="فيسبوك"
+                    aria-label="فيسبوك"
+                  >
+                    <FacebookIcon className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                {socialAccounts.telegram && (
+                  <a
+                    href={socialAccounts.telegram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-full bg-stone-200 dark:bg-stone-800 hover:bg-[#229ED9] hover:text-white transition-all text-stone-600 dark:text-stone-300"
+                    title="تليجرام"
+                    aria-label="تليجرام"
+                  >
+                    <TelegramIcon className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quick Categories Navigation */}

@@ -57,7 +57,12 @@ export const TrendingSidebar: React.FC<TrendingSidebarProps> = ({
                 className="group cursor-pointer pt-3 first:pt-0 flex items-start gap-3"
               >
                 {/* Numbered Salience */}
-                <span className="font-editorial text-2xl font-bold text-stone-300 dark:text-stone-700 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors w-6 shrink-0 tabular-nums">
+                <span
+                  dir="ltr"
+                  lang="en"
+                  style={{ fontFeatureSettings: "'locl' 0" }}
+                  className="font-mono text-2xl font-bold text-stone-300 dark:text-stone-700 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors w-8 shrink-0 tabular-nums western-digits"
+                >
                   0{rank}
                 </span>
 
@@ -65,7 +70,15 @@ export const TrendingSidebar: React.FC<TrendingSidebarProps> = ({
                   <div className="flex items-center gap-2 text-[11px] text-stone-500">
                     <span className="font-medium text-amber-800 dark:text-amber-300">{article.category}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="font-mono">{article.views} قراءة</span>
+                    <span
+                      dir="ltr"
+                      lang="en"
+                      style={{ fontFeatureSettings: "'locl' 0" }}
+                      className="font-mono tabular-nums western-digits"
+                    >
+                      {article.views}
+                    </span>
+                    <span>قراءة</span>
                   </div>
 
                   <h4 className="text-xs sm:text-sm font-bold font-headline text-stone-900 dark:text-stone-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors leading-snug line-clamp-2">

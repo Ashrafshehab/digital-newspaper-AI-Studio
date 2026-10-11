@@ -14,6 +14,7 @@ import { NewspaperFooter } from './components/NewspaperFooter';
 import { EditorialLoginModal } from './components/EditorialLoginModal';
 import { EditorialDashboardModal } from './components/EditorialDashboardModal';
 import { AuthorProfileModal } from './components/AuthorProfileModal';
+import { MultimediaVideoSection } from './components/MultimediaVideoSection';
 
 import {
   INITIAL_ARTICLES,
@@ -21,10 +22,11 @@ import {
   BREAKING_NEWS,
   GRADUATION_PROJECT_INFO,
   OPINION_COLUMNS,
-  EDITORIAL_USERS
+  EDITORIAL_USERS,
+  INITIAL_SOCIAL_ACCOUNTS
 } from './data/mockArticles';
 import { INITIAL_PHOTO_LIBRARY } from './data/defaultPhotos';
-import { Article, ArticleWorkflowStatus, EditorialUser, WorkflowLog, Comment, Category, PhotoLibraryItem } from './types/newspaper';
+import { Article, ArticleWorkflowStatus, EditorialUser, WorkflowLog, Comment, Category, PhotoLibraryItem, SocialMediaAccounts, GraduationProjectInfo } from './types/newspaper';
 
 export default function App() {
   // 1. Dark Mode State with HTML Class Sync
@@ -238,10 +240,30 @@ export default function App() {
     setPhotoLibrary((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // 7. Navigation & Filtering State
+  // 8. Social Media Accounts State (Configurable in Dashboard)
+  const [socialAccounts, setSocialAccounts] = useState<SocialMediaAccounts>(() => {
+    const saved = localStorage.getItem('mudigital_social_accounts');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return INITIAL_SOCIAL_ACCOUNTS;
+      }
+    }
+    return INITIAL_SOCIAL_ACCOUNTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mudigital_social_accounts', JSON.stringify(socialAccounts));
+  }, [socialAccounts]);
+
+  const handleUpdateSocialAccounts = (updated: SocialMediaAccounts) => {
+    setSocialAccounts(updated);
+  };
+
+  // 9. Navigation & Filtering State
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'broadsheet' | 'compact'>('grid');
 
   // 8. Modals and Drawers State
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
@@ -251,6 +273,26 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGraduationBannerOpen, setIsGraduationBannerOpen] = useState(false);
   const [selectedAuthorForProfile, setSelectedAuthorForProfile] = useState<string | null>(null);
+
+  // Graduation Project Info state with localStorage persistence
+  const [graduationProjectInfo, setGraduationProjectInfo] = useState<GraduationProjectInfo>(() => {
+    try {
+      const saved = localStorage.getItem('mudigital_graduation_project_info');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Fallback
+    }
+    return GRADUATION_PROJECT_INFO;
+  });
+
+  const handleUpdateGraduationProjectInfo = (updated: GraduationProjectInfo) => {
+    setGraduationProjectInfo(updated);
+    try {
+      localStorage.setItem('mudigital_graduation_project_info', JSON.stringify(updated));
+    } catch {
+      // LocalStorage error fallback
+    }
+  };
 
   // Toggle bookmark handler
   const handleToggleBookmark = (id: string) => {
@@ -316,10 +358,31 @@ export default function App() {
       })
     );
 
-    if (activeArticle && activeArticle.id === articleId) {
-      setActiveArticle((prev) =>
-        prev ? { ...prev, status: newStatus, publishedAt: newStatus === 'published' ? 'اليوم' : prev.publishedAt } : null
-      );
+    // Automatic Cross-Posting on Publication
+    if (newStatus === 'published' && socialAccounts?.autoPublishEnabled) {
+      const targetArticle = articles.find((a) => a.id === articleId);
+      const activePlatforms: ('facebook' | 'twitter' | 'telegram' | 'whatsapp')[] = [];
+      if (socialAccounts.autoPublishPlatforms?.facebook) activePlatforms.push('facebook');
+      if (socialAccounts.autoPublishPlatforms?.twitter) activePlatforms.push('twitter');
+      if (socialAccounts.autoPublishPlatforms?.telegram) activePlatforms.push('telegram');
+      if (socialAccounts.autoPublishPlatforms?.whatsapp) activePlatforms.push('whatsapp');
+
+      if (activePlatforms.length > 0 && targetArticle) {
+        const newAutoLog = {
+          id: `auto-${Date.now()}`,
+          articleId: targetArticle.id,
+          articleTitle: targetArticle.title,
+          timestamp: 'الآن - فور اعتماد النشر',
+          platforms: activePlatforms,
+          status: 'success' as const,
+          message: `تم البث الآلي للمقال مع الصورة والملخص (${activePlatforms.length} منصات مفعلة).`
+        };
+
+        setSocialAccounts((prev) => ({
+          ...prev,
+          autoPublishLogs: [newAutoLog, ...(prev.autoPublishLogs || [])]
+        }));
+      }
     }
   };
 
@@ -356,12 +419,13 @@ export default function App() {
     setEditorialUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
-  // Open article & increase view count
+  // Open article & increase view count (displayed natively in-page without popup)
   const handleOpenArticle = (article: Article) => {
     setArticles((prev) =>
       prev.map((a) => (a.id === article.id ? { ...a, views: a.views + 1 } : a))
     );
     setActiveArticle({ ...article, views: article.views + 1 });
+    window.scrollTo({ top: 180, behavior: 'smooth' });
   };
 
   // Open opinion column in reader
@@ -407,7 +471,12 @@ export default function App() {
     return publishedArticles.filter((art) => {
       const matchesCategory =
         selectedCategoryId === 'all' || art.categoryId === selectedCategoryId;
-      const matchesTag = !selectedTag || art.tags.includes(selectedTag);
+      const cleanSelectedTag = selectedTag ? selectedTag.replace(/^#/, '').trim().toLowerCase() : null;
+      const matchesTag =
+        !cleanSelectedTag ||
+        art.tags.some(
+          (t) => t.replace(/^#/, '').trim().toLowerCase() === cleanSelectedTag
+        );
       return matchesCategory && matchesTag;
     });
   }, [publishedArticles, selectedCategoryId, selectedTag]);
@@ -475,8 +544,15 @@ export default function App() {
     }
   };
 
+  const [dashboardInitialTab, setDashboardInitialTab] = useState<'queue' | 'compose' | 'categories' | 'users' | 'profile' | 'photos' | 'stats' | 'social_accounts'>('queue');
+
   // Open Editorial Portal Trigger
-  const handleOpenEditorialPortal = () => {
+  const handleOpenEditorialPortal = (targetTab?: 'queue' | 'compose' | 'categories' | 'users' | 'profile' | 'photos' | 'stats' | 'social_accounts' | React.SyntheticEvent) => {
+    if (typeof targetTab === 'string') {
+      setDashboardInitialTab(targetTab);
+    } else {
+      setDashboardInitialTab('queue');
+    }
     if (currentEditorialUser) {
       setIsDashboardModalOpen(true);
     } else {
@@ -512,134 +588,178 @@ export default function App() {
         onSelectCategory={(id) => {
           setSelectedCategoryId(id);
           setSelectedTag(null);
+          setActiveArticle(null);
         }}
-        viewMode={viewMode}
-        onChangeViewMode={setViewMode}
         totalArticlesCount={publishedArticles.length}
       />
 
       {/* 4. Graduation Project Banner (Capstone Showcase) */}
       <GraduationProjectBanner
-        info={GRADUATION_PROJECT_INFO}
+        info={graduationProjectInfo}
         isOpenDefault={isGraduationBannerOpen}
+        onUpdateInfo={handleUpdateGraduationProjectInfo}
       />
 
-      {/* 5. Main Newspaper Editorial Canvas (Showing Approved & Published Articles) */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 flex-1 w-full">
-        
-        {/* Front Page Lead & Opinion (on 'all' category without tag filter) */}
-        {selectedCategoryId === 'all' && !selectedTag && leadArticle && (
-          <>
-            <LeadHeroSection
-              leadArticle={leadArticle}
-              secondaryArticles={secondaryArticles}
-              onOpenArticle={handleOpenArticle}
+      {/* 5. Main Newspaper Editorial Canvas */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 flex-1 w-full pb-12">
+        {/* If an article is selected: Display full article directly in the same page (No popup!) */}
+        {activeArticle ? (
+          <div className="animate-fadeIn">
+            <QuickReaderModal
+              article={activeArticle}
+              onClose={() => {
+                setActiveArticle(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               onToggleBookmark={handleToggleBookmark}
-              isBookmarked={isBookmarked}
+              isBookmarked={isBookmarked(activeArticle.id)}
+              onLikeArticle={handleLikeArticle}
+              onAddComment={handleAddComment}
+              onNextArticle={handleNextArticle}
+              onPrevArticle={handlePrevArticle}
               onOpenAuthorProfile={(name) => setSelectedAuthorForProfile(name)}
+              currentUser={currentEditorialUser}
+              onUpdateArticle={handleUpdateArticle}
+              categories={categories}
+              editorialUsers={editorialUsers}
+              photoLibrary={photoLibrary}
+              onAddPhoto={handleAddPhoto}
+              onUpdatePhoto={handleUpdatePhoto}
+              onDeletePhoto={handleDeletePhoto}
+              onOpenAdminDashboard={() => handleOpenEditorialPortal('social_accounts')}
+              onSelectTag={(tag) => {
+                setSelectedTag(tag);
+                setActiveArticle(null);
+                setSelectedCategoryId('all');
+                window.scrollTo({ top: 120, behavior: 'smooth' });
+              }}
+              socialAccounts={socialAccounts}
             />
+          </div>
+        ) : (
+          /* Normal Front Page Flow when no article is currently being read */
+          <>
+            {/* Front Page Lead & Opinion (on 'all' category without tag filter) */}
+            {selectedCategoryId === 'all' && !selectedTag && leadArticle && (
+              <>
+                <LeadHeroSection
+                  leadArticle={leadArticle}
+                  secondaryArticles={secondaryArticles}
+                  onOpenArticle={handleOpenArticle}
+                  onToggleBookmark={handleToggleBookmark}
+                  isBookmarked={isBookmarked}
+                  onOpenAuthorProfile={(name) => setSelectedAuthorForProfile(name)}
+                  onSelectTag={(tag) => setSelectedTag(tag)}
+                  socialAccounts={socialAccounts}
+                />
 
-            <OpinionSection onOpenQuickOpinion={handleOpenOpinion} />
+                {/* Multimedia & Video Journalism Section (صحافة الفيديو والتقارير المصورة) */}
+                <MultimediaVideoSection
+                  articles={publishedArticles}
+                  onOpenArticle={handleOpenArticle}
+                />
+
+                <OpinionSection onOpenQuickOpinion={handleOpenOpinion} />
+              </>
+            )}
+
+            {/* When user selects the Multimedia category specifically */}
+            {selectedCategoryId === 'multimedia' && !selectedTag && (
+              <MultimediaVideoSection
+                articles={publishedArticles}
+                onOpenArticle={handleOpenArticle}
+              />
+            )}
+
+            {/* Section Heading & Category Filter Status */}
+            <div className="py-6 flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 dark:border-stone-800 mb-6">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl sm:text-2xl font-bold font-headline text-stone-950 dark:text-white">
+                    {selectedTag
+                      ? `المقالات والتقارير الموسومة بـ #${selectedTag}`
+                      : categories.find((c) => c.id === selectedCategoryId)?.name || 'أحدث التقارير'}
+                  </h2>
+                  {selectedTag && (
+                    <button
+                      onClick={() => setSelectedTag(null)}
+                      className="text-xs px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900 border border-amber-300 dark:border-amber-800 transition-colors cursor-pointer font-medium flex items-center gap-1"
+                      title="إلغاء التصفية بالوسم والعودة لكافة المقالات"
+                    >
+                      <span>✕ إلغاء التصفية بالوسم</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-stone-500 font-body">
+                  {selectedTag
+                    ? `عرض جميع المواد الصحفية المرتبطة بهذا الهاشتاج (${filteredArticles.length} موضوع)`
+                    : categories.find((c) => c.id === selectedCategoryId)?.description || 'تغطية صحفية مستمرة'}
+                </p>
+              </div>
+
+              <div className="text-xs text-stone-500 font-medium">
+                المقالات المعتمدة للنشر: <span className="font-mono font-bold text-stone-900 dark:text-stone-100">{filteredArticles.length}</span>
+              </div>
+            </div>
+
+            {/* Content Layout: Published Articles Feed + Trending Sidebar */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              <div className="lg:col-span-8">
+                {filteredArticles.length === 0 ? (
+                  <div className="py-16 text-center text-stone-400 space-y-3 bg-stone-100/60 dark:bg-stone-900/40 rounded-xl p-8 border border-stone-200 dark:border-stone-800">
+                    <p className="text-base font-bold font-headline">لا توجد مواد صحفية منشورة تطابق هذا الفرز</p>
+                    <p className="text-xs text-stone-500 max-w-md mx-auto">
+                      {selectedTag ? `لم يتم العثور على مقالات تحت الوسم #${selectedTag}. يمكنك إلغاء التصفية لمشاهدة جميع المواد.` : 'يمكن كتابة تقرير جديد عبر لوحة التحكم وسيمر بمراحل التدقيق الثلاث قبل النشر.'}
+                    </p>
+                    {selectedTag ? (
+                      <button
+                        onClick={() => setSelectedTag(null)}
+                        className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded transition-colors cursor-pointer inline-block"
+                      >
+                        عرض جميع المقالات
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleOpenEditorialPortal}
+                        className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 dark:bg-stone-100 dark:text-stone-900 rounded hover:opacity-90 transition-opacity cursor-pointer inline-block"
+                      >
+                        دخول لوحة التحكم بالنشر
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {filteredArticles.map((article) => (
+                      <ArticleCard
+                        key={article.id}
+                        article={article}
+                        onOpen={handleOpenArticle}
+                        onToggleBookmark={handleToggleBookmark}
+                        isBookmarked={isBookmarked(article.id)}
+                        onOpenAuthorProfile={(name) => setSelectedAuthorForProfile(name)}
+                        onSelectTag={(tag) => setSelectedTag(tag)}
+                        socialAccounts={socialAccounts}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sidebar */}
+              <div className="lg:col-span-4">
+                <TrendingSidebar
+                  articles={publishedArticles}
+                  onOpenArticle={handleOpenArticle}
+                  selectedTag={selectedTag}
+                  onSelectTag={setSelectedTag}
+                />
+              </div>
+
+            </div>
           </>
         )}
-
-        {/* Section Heading & Category Filter Status */}
-        <div className="py-6 flex items-center justify-between border-b border-stone-200 dark:border-stone-800 mb-6">
-          <div className="space-y-0.5">
-            <h2 className="text-xl sm:text-2xl font-bold font-headline text-stone-950 dark:text-white">
-              {selectedTag
-                ? `المقالات والتقارير الموسومة بـ #${selectedTag}`
-                : categories.find((c) => c.id === selectedCategoryId)?.name || 'أحدث التقارير'}
-            </h2>
-            <p className="text-xs text-stone-500 font-body">
-              {selectedTag
-                ? 'عرض نتائج التصفية بحسب الوسم المختار'
-                : categories.find((c) => c.id === selectedCategoryId)?.description || 'تغطية صحفية مستمرة'}
-            </p>
-          </div>
-
-          <div className="text-xs text-stone-500 font-medium">
-            المقالات المعتمدة للنشر: <span className="font-mono font-bold text-stone-900 dark:text-stone-100">{filteredArticles.length}</span>
-          </div>
-        </div>
-
-        {/* Content Layout: Published Articles Feed + Trending Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          <div className="lg:col-span-8">
-            {filteredArticles.length === 0 ? (
-              <div className="py-16 text-center text-stone-400 space-y-3 bg-stone-100/60 dark:bg-stone-900/40 rounded-xl p-8 border border-stone-200 dark:border-stone-800">
-                <p className="text-base font-bold font-headline">لا توجد مواد صحفية منشورة في هذا القسم حاليا</p>
-                <p className="text-xs text-stone-500 max-w-md mx-auto">
-                  يمكن كتابة تقرير جديد عبر لوحة التحكم وسيمر بمراحل التدقيق الثلاث قبل النشر.
-                </p>
-                <button
-                  onClick={handleOpenEditorialPortal}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 dark:bg-stone-100 dark:text-stone-900 rounded hover:opacity-90 transition-opacity cursor-pointer inline-block"
-                >
-                  دخول لوحة التحكم بالنشر
-                </button>
-              </div>
-            ) : (
-              <div
-                className={
-                  viewMode === 'grid'
-                    ? 'grid grid-cols-1 sm:grid-cols-2 gap-6'
-                    : viewMode === 'broadsheet'
-                    ? 'grid grid-cols-1 sm:grid-cols-2 gap-6 newspaper-columns'
-                    : 'space-y-3'
-                }
-              >
-                {filteredArticles.map((article) => (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    viewMode={viewMode}
-                    onOpen={handleOpenArticle}
-                    onToggleBookmark={handleToggleBookmark}
-                    isBookmarked={isBookmarked(article.id)}
-                    onOpenAuthorProfile={(name) => setSelectedAuthorForProfile(name)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-4">
-            <TrendingSidebar
-              articles={publishedArticles}
-              onOpenArticle={handleOpenArticle}
-              selectedTag={selectedTag}
-              onSelectTag={setSelectedTag}
-            />
-          </div>
-
-        </div>
-
       </main>
-
-      {/* 6. Distraction-Free Quick Reader Modal */}
-      <QuickReaderModal
-        article={activeArticle}
-        onClose={() => setActiveArticle(null)}
-        onToggleBookmark={handleToggleBookmark}
-        isBookmarked={activeArticle ? isBookmarked(activeArticle.id) : false}
-        onLikeArticle={handleLikeArticle}
-        onAddComment={handleAddComment}
-        onNextArticle={handleNextArticle}
-        onPrevArticle={handlePrevArticle}
-        onOpenAuthorProfile={(name) => setSelectedAuthorForProfile(name)}
-        currentUser={currentEditorialUser}
-        onUpdateArticle={handleUpdateArticle}
-        categories={categories}
-        editorialUsers={editorialUsers}
-        photoLibrary={photoLibrary}
-        onAddPhoto={handleAddPhoto}
-        onUpdatePhoto={handleUpdatePhoto}
-        onDeletePhoto={handleDeletePhoto}
-        onOpenAdminDashboard={handleOpenEditorialPortal}
-      />
 
       {/* 7. Password-Protected Editorial Login Modal */}
       <EditorialLoginModal
@@ -658,6 +778,7 @@ export default function App() {
           isOpen={isDashboardModalOpen}
           onClose={() => setIsDashboardModalOpen(false)}
           currentUser={currentEditorialUser}
+          initialTab={dashboardInitialTab}
           onLogout={() => {
             setCurrentEditorialUser(null);
             setIsDashboardModalOpen(false);
@@ -677,6 +798,8 @@ export default function App() {
           onAddPhoto={handleAddPhoto}
           onUpdatePhoto={handleUpdatePhoto}
           onDeletePhoto={handleDeletePhoto}
+          socialAccounts={socialAccounts}
+          onUpdateSocialAccounts={handleUpdateSocialAccounts}
         />
       )}
 
@@ -717,7 +840,7 @@ export default function App() {
 
       {/* 12. Newspaper Footer */}
       <NewspaperFooter
-        info={GRADUATION_PROJECT_INFO}
+        info={graduationProjectInfo}
         onOpenGraduationInfo={() => {
           setIsGraduationBannerOpen(true);
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -727,6 +850,7 @@ export default function App() {
           window.scrollTo({ top: 400, behavior: 'smooth' });
         }}
         onOpenEditorialPortal={handleOpenEditorialPortal}
+        socialAccounts={socialAccounts}
       />
 
     </div>
