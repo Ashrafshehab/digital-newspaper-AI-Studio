@@ -187,8 +187,16 @@ export const NewspaperFooter: React.FC<NewspaperFooterProps> = ({
 
         {/* Bottom Bar: Copyright & Scroll to Top */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-500">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span>© 2026 صحيفة MUDigital - جميع الحقوق محفوظة لطلاب قسم الصحافة والنشر الرقمي.</span>
+            <span className="text-stone-300 dark:text-stone-700">·</span>
+            <button
+              onClick={onOpenEditorialPortal}
+              className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors cursor-pointer"
+              title="دخول هيئة التحرير (مسار خاص /editorial)"
+            >
+              بوابة المحررين
+            </button>
           </div>
 
           <button

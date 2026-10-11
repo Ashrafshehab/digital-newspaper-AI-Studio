@@ -15,6 +15,7 @@ import { EditorialLoginModal } from './components/EditorialLoginModal';
 import { EditorialDashboardModal } from './components/EditorialDashboardModal';
 import { AuthorProfileModal } from './components/AuthorProfileModal';
 import { MultimediaVideoSection } from './components/MultimediaVideoSection';
+import { EditorialTopBar } from './components/EditorialTopBar';
 
 import {
   INITIAL_ARTICLES,
@@ -27,6 +28,26 @@ import {
 } from './data/mockArticles';
 import { INITIAL_PHOTO_LIBRARY } from './data/defaultPhotos';
 import { Article, ArticleWorkflowStatus, EditorialUser, WorkflowLog, Comment, Category, PhotoLibraryItem, SocialMediaAccounts, GraduationProjectInfo } from './types/newspaper';
+
+// Safe localStorage setter to prevent uncaught QuotaExceededError and blank screen crashes
+const safeLocalStorageSet = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[LocalStorage] Failed to write key "${key}":`, err);
+    // If quota exceeded on photo library, prune older photos to preserve quota
+    if (key === 'mudigital_photo_library') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed) && parsed.length > 12) {
+          localStorage.setItem(key, JSON.stringify(parsed.slice(0, 12)));
+        }
+      } catch {
+        // ignore fallback errors
+      }
+    }
+  }
+};
 
 export default function App() {
   // 1. Dark Mode State with HTML Class Sync
@@ -42,7 +63,7 @@ export default function App() {
     } else {
       document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('mudigital_dark_mode', String(darkMode));
+    safeLocalStorageSet('mudigital_dark_mode', String(darkMode));
   }, [darkMode]);
 
   // 2. Editorial Users State (Managed by Admin)
@@ -59,7 +80,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('mudigital_editorial_users', JSON.stringify(editorialUsers));
+    safeLocalStorageSet('mudigital_editorial_users', JSON.stringify(editorialUsers));
   }, [editorialUsers]);
 
   // 3. Editorial Authentication State
@@ -77,9 +98,13 @@ export default function App() {
 
   useEffect(() => {
     if (currentEditorialUser) {
-      localStorage.setItem('mudigital_user', JSON.stringify(currentEditorialUser));
+      safeLocalStorageSet('mudigital_user', JSON.stringify(currentEditorialUser));
     } else {
-      localStorage.removeItem('mudigital_user');
+      try {
+        localStorage.removeItem('mudigital_user');
+      } catch {
+        // ignore
+      }
     }
   }, [currentEditorialUser]);
 
@@ -111,7 +136,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('mudigital_articles', JSON.stringify(articles));
+    safeLocalStorageSet('mudigital_articles', JSON.stringify(articles));
   }, [articles]);
 
   // 5. Categories & Sections State (Managed by Admin)
@@ -182,7 +207,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('mudigital_categories', JSON.stringify(categories));
+    safeLocalStorageSet('mudigital_categories', JSON.stringify(categories));
   }, [categories]);
 
   // 6. Bookmarks State
@@ -199,7 +224,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('mudigital_bookmarks', JSON.stringify(bookmarks));
+    safeLocalStorageSet('mudigital_bookmarks', JSON.stringify(bookmarks));
   }, [bookmarks]);
 
   // 7. Photo Library State
@@ -223,7 +248,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('mudigital_photo_library', JSON.stringify(photoLibrary));
+    safeLocalStorageSet('mudigital_photo_library', JSON.stringify(photoLibrary));
   }, [photoLibrary]);
 
   const handleAddPhoto = (newPhoto: PhotoLibraryItem) => {
@@ -254,7 +279,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('mudigital_social_accounts', JSON.stringify(socialAccounts));
+    safeLocalStorageSet('mudigital_social_accounts', JSON.stringify(socialAccounts));
   }, [socialAccounts]);
 
   const handleUpdateSocialAccounts = (updated: SocialMediaAccounts) => {
@@ -268,6 +293,7 @@ export default function App() {
   // 8. Modals and Drawers State
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginModalMode, setLoginModalMode] = useState<'login' | 'register'>('login');
   const [isDashboardModalOpen, setIsDashboardModalOpen] = useState(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -336,6 +362,63 @@ export default function App() {
       );
     }
   };
+
+  // Pending articles count for staff
+  const pendingArticlesCount = useMemo(() => {
+    return articles.filter(
+      (a) => a.status && a.status !== 'published' && a.status !== 'draft'
+    ).length;
+  }, [articles]);
+
+  // Route listener: detect /editorial, /admin, ?portal=editorial, #admin, etc.
+  useEffect(() => {
+    const checkEditorialRoute = () => {
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+
+      const isStaffPath =
+        path.includes('/editorial') ||
+        path.includes('/admin') ||
+        path.includes('/staff') ||
+        path.includes('/register') ||
+        path.includes('/login') ||
+        search.includes('portal=editorial') ||
+        search.includes('route=admin') ||
+        search.includes('action=register') ||
+        search.includes('mode=register') ||
+        hash.includes('editorial') ||
+        hash.includes('admin') ||
+        hash.includes('register') ||
+        hash.includes('login');
+
+      if (isStaffPath) {
+        if (!currentEditorialUser) {
+          if (
+            path.includes('/register') ||
+            search.includes('action=register') ||
+            search.includes('mode=register') ||
+            hash.includes('register')
+          ) {
+            setLoginModalMode('register');
+          } else {
+            setLoginModalMode('login');
+          }
+          setIsLoginModalOpen(true);
+        } else {
+          setIsDashboardModalOpen(true);
+        }
+      }
+    };
+
+    checkEditorialRoute();
+    window.addEventListener('popstate', checkEditorialRoute);
+    window.addEventListener('hashchange', checkEditorialRoute);
+    return () => {
+      window.removeEventListener('popstate', checkEditorialRoute);
+      window.removeEventListener('hashchange', checkEditorialRoute);
+    };
+  }, [currentEditorialUser]);
 
   // Update Article Workflow (Stage 1 -> Stage 2 -> Stage 3 -> Published)
   const handleUpdateArticleWorkflow = (
@@ -407,11 +490,31 @@ export default function App() {
   };
 
   const handleUpdateUser = (userId: string, updatedData: Partial<EditorialUser>) => {
+    const existingUser = editorialUsers.find((u) => u.id === userId);
     setEditorialUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, ...updatedData } : u))
     );
     if (currentEditorialUser && currentEditorialUser.id === userId) {
       setCurrentEditorialUser((prev) => (prev ? { ...prev, ...updatedData } : null));
+    }
+    // Synchronize avatar and author name across published and pending articles
+    if (existingUser && (updatedData.name || updatedData.avatar)) {
+      const oldName = existingUser.name;
+      setArticles((prev) =>
+        prev.map((art) => {
+          if (art.author.name === oldName || (updatedData.name && art.author.name === updatedData.name)) {
+            return {
+              ...art,
+              author: {
+                ...art.author,
+                ...(updatedData.name ? { name: updatedData.name } : {}),
+                ...(updatedData.avatar ? { avatar: updatedData.avatar } : {})
+              }
+            };
+          }
+          return art;
+        })
+      );
     }
   };
 
@@ -563,6 +666,26 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FBF9F5] dark:bg-[#0c0d0e] text-stone-900 dark:text-stone-100 flex flex-col font-body transition-colors">
       
+      {/* 0. Top Editorial Admin Ribbon (Rendered ONLY when an editorial staff member is logged in) */}
+      {currentEditorialUser && (
+        <EditorialTopBar
+          user={currentEditorialUser}
+          pendingArticlesCount={pendingArticlesCount}
+          onOpenDashboard={() => {
+            setDashboardInitialTab('queue');
+            setIsDashboardModalOpen(true);
+          }}
+          onOpenComposer={() => {
+            setDashboardInitialTab('compose');
+            setIsDashboardModalOpen(true);
+          }}
+          onLogout={() => {
+            setCurrentEditorialUser(null);
+            setIsDashboardModalOpen(false);
+          }}
+        />
+      )}
+
       {/* 1. Newspaper Top Masthead */}
       <Masthead
         darkMode={darkMode}
@@ -761,11 +884,13 @@ export default function App() {
         )}
       </main>
 
-      {/* 7. Password-Protected Editorial Login Modal */}
+      {/* 7. Password-Protected Editorial Login & Registration Modal */}
       <EditorialLoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         editorialUsers={editorialUsers}
+        initialMode={loginModalMode}
+        onRegisterUser={handleAddUser}
         onLoginSuccess={(user) => {
           setCurrentEditorialUser(user);
           setIsDashboardModalOpen(true);
@@ -817,6 +942,7 @@ export default function App() {
           }}
           currentUser={currentEditorialUser}
           onUpdateUserProfile={handleUpdateUser}
+          onAddPhoto={handleAddPhoto}
         />
       )}
 

@@ -269,6 +269,13 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
   const [editUserCanManageCategories, setEditUserCanManageCategories] = useState(false);
   const [editUserCanManageUsers, setEditUserCanManageUsers] = useState(false);
   const [userFeedbackMsg, setUserFeedbackMsg] = useState('');
+  const [editUserPhotoSuccess, setEditUserPhotoSuccess] = useState('');
+  const [newUserPhotoSuccess, setNewUserPhotoSuccess] = useState('');
+  const [myProfilePhotoSuccess, setMyProfilePhotoSuccess] = useState('');
+  const editUserFileInputRef = useRef<HTMLInputElement>(null);
+  const newUserFileInputRef = useRef<HTMLInputElement>(null);
+  const myProfileFileInputRef = useRef<HTMLInputElement>(null);
+  const usersTabRef = useRef<HTMLDivElement>(null);
 
   // Profile update state for current user (Allows Admin to replace "م. أحمد خالد" with their own real name & password)
   const [myName, setMyName] = useState(currentUser.name || '');
@@ -625,6 +632,45 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     setComposeVideoSourceType('youtube');
   };
 
+  // Direct Avatar Upload from Local Device to Photo Library and User Profile
+  const handleDirectAvatarUpload = async (
+    file: File,
+    editorName: string,
+    onSuccessUrl: (url: string) => void,
+    setSuccessMsg: (msg: string) => void
+  ) => {
+    try {
+      const result = await optimizeAndResizeImage(file, 400, 400, {
+        fitMode: 'crop_cover',
+        quality: 0.82
+      });
+
+      const newPhoto: PhotoLibraryItem = {
+        id: `photo-user-${Date.now()}`,
+        title: `صورة المحرر: ${editorName.trim() || 'عضو هيئة التحرير'}`,
+        url: result.dataUrl,
+        caption: `صورة شخصية معتمدة للمحرر ${editorName.trim() || 'الصحفي'} (400 × 400 مربعة)`,
+        photographer: 'قسم الصور - MUDigital',
+        preset: 'profile_square',
+        fitMode: 'crop_cover',
+        width: 400,
+        height: 400,
+        originalWidth: result.originalWidth,
+        originalHeight: result.originalHeight,
+        uploadedAt: new Date().toISOString().slice(0, 10).replace(/-/g, '/'),
+        fileSizeKB: result.fileSizeKB,
+        isInfographic: false
+      };
+
+      onAddPhoto(newPhoto);
+      onSuccessUrl(result.dataUrl);
+      setSuccessMsg('تم رفع الصورة بنجاح وحفظها في مكتبة الصور وتعيينها للمحرر!');
+      setTimeout(() => setSuccessMsg(''), 5000);
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ أثناء معالجة أبعاد الصورة');
+    }
+  };
+
   // Add User Handler
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -646,7 +692,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       password: newUserPassword.trim() || '123',
       role: newUserRole,
       roleTitleAr: roleTitles[newUserRole],
-      avatar: newUserAvatar,
+      avatar: newUserAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80',
       email: newUserEmail.trim() || `${newUserUsername.trim().toLowerCase()}@mti.edu.eg`,
       department: newUserDept.trim() || 'قسم الصحافة الرقمية - كلية الإعلام MTI',
       bio: newUserBio.trim() || 'محرر وعضو هيئة التحرير بصحيفة MUDigital الرقمية.',
@@ -663,6 +709,10 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     setNewUserPassword('123');
     setNewUserEmail('');
     setNewUserBio('');
+    setNewUserPhotoSuccess('');
+    setUserFeedbackMsg(`تم إنشاء حساب المحرر الجديد: "${newUser.name}" بنجاح!`);
+    setTimeout(() => setUserFeedbackMsg(''), 6000);
+    usersTabRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Save Categories
@@ -715,7 +765,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     const updatedPassword = myPassword.trim() || currentUser.password;
     const updatedEmail = myEmail.trim() || currentUser.email;
     const updatedBio = myBio.trim() || currentUser.bio;
-    const updatedAvatar = myAvatar.trim() || currentUser.avatar;
+    const updatedAvatar = myAvatar.trim() || currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80';
 
     onUpdateUser(currentUser.id, {
       name: updatedName,
@@ -726,8 +776,8 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       avatar: updatedAvatar
     });
 
-    setProfileSuccessMsg('تم حفظ وتحديث بيانات حسابك كمدير عام بنجاح!');
-    setTimeout(() => setProfileSuccessMsg(''), 4000);
+    setProfileSuccessMsg('تم حفظ وتحديث بيانات حسابك وصورتك الشخصية كمدير عام بنجاح في كامل الصحيفة!');
+    setTimeout(() => setProfileSuccessMsg(''), 5500);
   };
 
   // User Edit Handlers
@@ -745,6 +795,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
     setEditUserCanPublish(Boolean(user.canPublish));
     setEditUserCanManageCategories(Boolean(user.canManageCategories));
     setEditUserCanManageUsers(Boolean(user.canManageUsers));
+    setEditUserPhotoSuccess('');
   };
 
   const handleSaveUserEdit = (e: React.FormEvent) => {
@@ -760,6 +811,8 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       editor_in_chief: 'رئيس تحرير (صلاحية النشر والإدارة)'
     };
 
+    const finalAvatar = editUserAvatar.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80';
+
     const updatedData: Partial<EditorialUser> = {
       name: editUserName.trim(),
       username: editUserUsername.trim().toLowerCase(),
@@ -769,7 +822,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       email: editUserEmail.trim(),
       department: editUserDept.trim() || 'قسم الصحافة الرقمية - كلية الإعلام MTI',
       bio: editUserBio.trim(),
-      avatar: editUserAvatar.trim() || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80',
+      avatar: finalAvatar,
       canPublish: editUserRole === 'managing_editor' || editUserRole === 'editor_in_chief' || editUserRole === 'admin' || editUserCanPublish,
       canManageCategories: editUserRole === 'admin' || editUserCanManageCategories,
       canManageUsers: editUserRole === 'admin' || editUserCanManageUsers
@@ -777,8 +830,10 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
     onUpdateUser(editingUserId, updatedData);
     setEditingUserId(null);
-    setUserFeedbackMsg(`تم حفظ وتحديث بيانات وصلاحيات المحرر: "${updatedData.name}" بنجاح!`);
-    setTimeout(() => setUserFeedbackMsg(''), 4500);
+    setEditUserPhotoSuccess('');
+    setUserFeedbackMsg(`تم حفظ وتحديث بيانات وصورة وصلاحيات المحرر: "${updatedData.name}" بنجاح!`);
+    setTimeout(() => setUserFeedbackMsg(''), 6500);
+    usersTabRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Handle Photo Picker Selection callback
@@ -808,10 +863,16 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
       }
     } else if (photoPickerTarget === 'profile') {
       setMyAvatar(result.url);
+      setMyProfilePhotoSuccess('تم اختيار الصورة الشخصية بنجاح!');
+      setTimeout(() => setMyProfilePhotoSuccess(''), 4000);
     } else if (photoPickerTarget === 'new_user') {
       setNewUserAvatar(result.url);
+      setNewUserPhotoSuccess('تم اختيار صورة المحرر بنجاح!');
+      setTimeout(() => setNewUserPhotoSuccess(''), 4000);
     } else if (photoPickerTarget === 'edit_user') {
       setEditUserAvatar(result.url);
+      setEditUserPhotoSuccess('تم اختيار صورة المحرر بنجاح!');
+      setTimeout(() => setEditUserPhotoSuccess(''), 4000);
     } else if (photoPickerTarget === 'compose_author') {
       setComposeGuestAvatar(result.url);
     } else if (photoPickerTarget === 'inspected_author') {
@@ -3018,29 +3079,59 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                   {/* Avatar Picker for New User */}
                   <div className="p-3 bg-stone-50 dark:bg-stone-850 rounded-xl border border-stone-200 dark:border-stone-800 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-xs font-bold text-stone-800 dark:text-stone-200">
                         صورة المحرر الشخصية (400 × 400 مربعة):
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPhotoPickerTarget('new_user');
-                          setIsPhotoPickerOpen(true);
-                        }}
-                        className="text-xs text-amber-700 dark:text-amber-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Camera className="w-3.5 h-3.5" />
-                        <span>اختيار من مكتبة الصور</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          ref={newUserFileInputRef}
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleDirectAvatarUpload(file, newUserName, (url) => setNewUserAvatar(url), setNewUserPhotoSuccess);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => newUserFileInputRef.current?.click()}
+                          className="px-2.5 py-1 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>رفع من الجهاز</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoPickerTarget('new_user');
+                            setIsPhotoPickerOpen(true);
+                          }}
+                          className="px-2.5 py-1 text-xs font-bold text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 hover:bg-stone-100 rounded-lg flex items-center gap-1 cursor-pointer border border-stone-300 dark:border-stone-700"
+                        >
+                          <FolderOpen className="w-3.5 h-3.5 text-amber-600" />
+                          <span>من مكتبة الصور</span>
+                        </button>
+                      </div>
                     </div>
+
+                    {newUserPhotoSuccess && (
+                      <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 text-xs rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 font-bold">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{newUserPhotoSuccess}</span>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-3">
-                      <img src={newUserAvatar} alt="New user" className="w-12 h-12 rounded-full object-cover border-2 border-amber-600" />
+                      <img src={newUserAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80'} alt="New user" className="w-12 h-12 rounded-full object-cover border-2 border-amber-600 shrink-0 bg-stone-200" />
                       <input
                         type="url"
                         value={newUserAvatar}
                         onChange={(e) => setNewUserAvatar(e.target.value)}
-                        placeholder="رابط الصورة..."
+                        placeholder="أو الصق رابط صورة خارجي..."
                         className="flex-1 px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
                       />
                     </div>
@@ -3255,29 +3346,59 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                           {/* Avatar Picker for User */}
                           <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 space-y-2">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <span className="text-xs font-bold text-stone-800 dark:text-stone-200">
                                 صورة المحرر الشخصية (400 × 400 مربعة):
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPhotoPickerTarget('edit_user');
-                                  setIsPhotoPickerOpen(true);
-                                }}
-                                className="text-xs text-amber-700 dark:text-amber-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                                <span>اختيار أو رفع من مكتبة الصور</span>
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="file"
+                                  ref={editUserFileInputRef}
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handleDirectAvatarUpload(file, editUserName, (url) => setEditUserAvatar(url), setEditUserPhotoSuccess);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => editUserFileInputRef.current?.click()}
+                                  className="px-2.5 py-1 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs"
+                                >
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>رفع من الجهاز</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPhotoPickerTarget('edit_user');
+                                    setIsPhotoPickerOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 rounded-lg flex items-center gap-1 cursor-pointer border border-stone-300 dark:border-stone-700"
+                                >
+                                  <FolderOpen className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>من مكتبة الصور</span>
+                                </button>
+                              </div>
                             </div>
+
+                            {editUserPhotoSuccess && (
+                              <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 text-xs rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 font-bold">
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{editUserPhotoSuccess}</span>
+                              </div>
+                            )}
+
                             <div className="flex items-center gap-3">
-                              <img src={editUserAvatar} alt="User Avatar" className="w-12 h-12 rounded-full object-cover border-2 border-amber-600 shrink-0 bg-stone-200" />
+                              <img src={editUserAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80'} alt="User Avatar" className="w-12 h-12 rounded-full object-cover border-2 border-amber-600 shrink-0 bg-stone-200" />
                               <input
                                 type="url"
                                 value={editUserAvatar}
                                 onChange={(e) => setEditUserAvatar(e.target.value)}
-                                placeholder="رابط الصورة..."
+                                placeholder="أو الصق رابط صورة مخصص..."
                                 className="flex-1 px-3 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800"
                               />
                             </div>
@@ -3529,18 +3650,47 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
                     <span>الصورة الشخصية للبروفايل</span>
                   </label>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPhotoPickerTarget('profile');
-                      setIsPhotoPickerOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 dark:bg-amber-600 rounded-lg transition-colors cursor-pointer shadow-xs"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    <span>اختيار أو رفع صورة شخصية من المكتبة</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      ref={myProfileFileInputRef}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleDirectAvatarUpload(file, myName, (url) => setMyAvatar(url), setMyProfilePhotoSuccess);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => myProfileFileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-lg transition-colors cursor-pointer shadow-xs"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>رفع من الجهاز</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoPickerTarget('profile');
+                        setIsPhotoPickerOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors cursor-pointer border border-stone-300 dark:border-stone-700 shadow-2xs"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 text-amber-600" />
+                      <span>من مكتبة الصور</span>
+                    </button>
+                  </div>
                 </div>
+
+                {myProfilePhotoSuccess && (
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 text-xs rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 font-bold animate-fadeIn">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>{myProfilePhotoSuccess}</span>
+                  </div>
+                )}
 
                 <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 text-[11px] text-blue-900 dark:text-blue-200 flex items-center gap-2">
                   <Info className="w-4 h-4 text-blue-600 shrink-0" />
@@ -3549,7 +3699,7 @@ export const EditorialDashboardModal: React.FC<EditorialDashboardModalProps> = (
 
                 <div className="flex items-center gap-4">
                   <img
-                    src={myAvatar}
+                    src={myAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80'}
                     alt="My avatar"
                     className="w-16 h-16 rounded-full object-cover border-2 border-amber-600 shadow-md shrink-0 bg-stone-200"
                   />

@@ -124,16 +124,6 @@ export const Masthead: React.FC<MastheadProps> = ({
               <span>مشروع تخرج 2026</span>
             </button>
 
-            {/* Editorial Control Panel & Publishing Portal (Protected) */}
-            <button
-              onClick={onOpenEditorialPortal}
-              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-stone-900 dark:text-stone-100 bg-amber-500/20 hover:bg-amber-500/30 dark:bg-amber-500/15 dark:hover:bg-amber-500/25 border border-amber-500/40 rounded-md transition-colors cursor-pointer"
-              title="لوحة التحكم المحمية بكلمة سر لنشر ومراجعة المقالات"
-            >
-              <Lock className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
-              <span>{loggedInUserRoleTitle ? `لوحة التحكم (${loggedInUserRoleTitle})` : 'لوحة التحكم بالنشر'}</span>
-            </button>
-
             {/* Bookmarks Counter */}
             <button
               onClick={onOpenBookmarks}

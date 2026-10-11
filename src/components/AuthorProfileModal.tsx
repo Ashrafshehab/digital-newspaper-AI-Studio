@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Mail,
@@ -12,9 +12,13 @@ import {
   Edit3,
   Calendar,
   Building,
-  GraduationCap
+  GraduationCap,
+  Upload,
+  CheckCircle2,
+  Camera
 } from 'lucide-react';
-import { Article, EditorialUser } from '../types/newspaper';
+import { Article, EditorialUser, PhotoLibraryItem } from '../types/newspaper';
+import { optimizeAndResizeImage } from '../utils/imageOptimizer';
 
 interface AuthorProfileModalProps {
   isOpen: boolean;
@@ -25,6 +29,7 @@ interface AuthorProfileModalProps {
   onOpenArticle: (article: Article) => void;
   currentUser?: EditorialUser | null;
   onUpdateUserProfile?: (userId: string, updatedData: Partial<EditorialUser>) => void;
+  onAddPhoto?: (photo: PhotoLibraryItem) => void;
 }
 
 export const AuthorProfileModal: React.FC<AuthorProfileModalProps> = ({
@@ -35,10 +40,14 @@ export const AuthorProfileModal: React.FC<AuthorProfileModalProps> = ({
   editorialUsers,
   onOpenArticle,
   currentUser,
-  onUpdateUserProfile
+  onUpdateUserProfile,
+  onAddPhoto
 }) => {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [photoUploadSuccess, setPhotoUploadSuccess] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Find user data if exists
   const matchedUser = editorialUsers.find(
@@ -75,13 +84,52 @@ export const AuthorProfileModal: React.FC<AuthorProfileModalProps> = ({
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (matchedUser && onUpdateUserProfile) {
+      const finalAvatar = editAvatar.trim() || matchedUser.avatar;
       onUpdateUserProfile(matchedUser.id, {
         bio: editBio.trim(),
         email: editEmail.trim(),
-        avatar: editAvatar.trim() || matchedUser.avatar
+        avatar: finalAvatar
       });
+      setSaveSuccessMsg(`تم حفظ وتحديث بيانات وصورة المحرر "${matchedUser.name}" بنجاح!`);
+      setTimeout(() => setSaveSuccessMsg(''), 5500);
     }
     setIsEditing(false);
+  };
+
+  const handleDeviceAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await optimizeAndResizeImage(file, 400, 400, {
+        fitMode: 'crop_cover',
+        quality: 0.82
+      });
+
+      if (onAddPhoto) {
+        const newPhoto: PhotoLibraryItem = {
+          id: `photo-user-${Date.now()}`,
+          title: `صورة المحرر: ${authorName}`,
+          url: result.dataUrl,
+          caption: `صورة شخصية معتمدة للصحفي ${authorName}`,
+          preset: 'profile_square',
+          fitMode: 'crop_cover',
+          width: 400,
+          height: 400,
+          originalWidth: result.originalWidth,
+          originalHeight: result.originalHeight,
+          uploadedAt: new Date().toISOString().slice(0, 10).replace(/-/g, '/'),
+          fileSizeKB: result.fileSizeKB,
+          isInfographic: false
+        };
+        onAddPhoto(newPhoto);
+      }
+
+      setEditAvatar(result.dataUrl);
+      setPhotoUploadSuccess('تم رفع الصورة بنجاح وتعيينها للمحرر وحفظها في مكتبة الصور!');
+      setTimeout(() => setPhotoUploadSuccess(''), 5000);
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ أثناء معالجة الصورة');
+    }
   };
 
   const userAvatar = matchedUser?.avatar || authorArticles[0]?.author.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80';
@@ -168,12 +216,21 @@ export const AuthorProfileModal: React.FC<AuthorProfileModalProps> = ({
             </div>
           </div>
 
+          {/* Confirmation Success Message */}
+          {saveSuccessMsg && (
+            <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 font-bold flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{saveSuccessMsg}</span>
+            </div>
+          )}
+
           {/* Edit Form if toggled */}
           {isEditing ? (
             <form onSubmit={handleSaveProfile} className="mt-3 p-4 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 space-y-3">
               <h4 className="text-xs font-bold text-stone-800 dark:text-stone-200">
-                تعديل بيانات المحرر والبروفايل:
+                تعديل بيانات المحرر وصورته الشخصية:
               </h4>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-400 mb-1">
@@ -187,18 +244,44 @@ export const AuthorProfileModal: React.FC<AuthorProfileModalProps> = ({
                     className="w-full px-2.5 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
                   />
                 </div>
+
                 <div>
                   <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-400 mb-1">
-                    رابط الصورة الشخصية
+                    الصورة الشخصية (400 × 400)
                   </label>
-                  <input
-                    type="url"
-                    value={editAvatar}
-                    onChange={(e) => setEditAvatar(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleDeviceAvatarUpload}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-2.5 py-1 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>رفع من الجهاز</span>
+                    </button>
+                    <input
+                      type="url"
+                      value={editAvatar}
+                      onChange={(e) => setEditAvatar(e.target.value)}
+                      placeholder="أو رابط الصورة..."
+                      className="flex-1 px-2.5 py-1.5 text-xs rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {photoUploadSuccess && (
+                <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 text-xs rounded border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5 font-bold">
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{photoUploadSuccess}</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-400 mb-1">
@@ -212,19 +295,20 @@ export const AuthorProfileModal: React.FC<AuthorProfileModalProps> = ({
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-1 border-t border-stone-200 dark:border-stone-700">
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 text-xs rounded hover:bg-stone-200 text-stone-600"
+                  className="px-3 py-1.5 text-xs rounded hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 cursor-pointer"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg cursor-pointer shadow-xs flex items-center gap-1"
                 >
-                  حفظ التعديلات
+                  <Check className="w-3.5 h-3.5" />
+                  <span>حفظ التعديلات</span>
                 </button>
               </div>
             </form>
